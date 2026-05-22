@@ -1,0 +1,50 @@
+id = "inline-markup-nested"
+category = "01-basic"
+prompt = """
+Write a single org-mode level-1 headline titled \"Markup edge cases\" followed by a paragraph that exercises org-mode's inline markup rules. The paragraph must include all of the following on a single line each (or as natural prose, in any order):
+
+- A bold span: *important*
+- An italic span: /subtle/
+- Inline code: ~fn foo()~
+- Verbatim text containing what LOOKS like markup but isn't: =do *not* render this as bold=
+- Inline LaTeX: $E = mc^2$
+- A strikethrough span: +deprecated+
+- An underlined span: _underscored_
+
+Output ONLY the org-mode text. No fences, no commentary.
+"""
+
+[[validate]]
+kind = "parses"
+
+[[validate]]
+kind = "headline_count"
+count = 1
+
+[[validate]]
+kind = "regex"
+pattern = "\\*important\\*"
+
+[[validate]]
+kind = "regex"
+pattern = "/subtle/"
+
+[[validate]]
+kind = "regex"
+pattern = "~fn foo\\(\\)~"
+
+[[validate]]
+kind = "regex"
+pattern = "=do \\*not\\* render this as bold="
+
+[[validate]]
+kind = "regex"
+pattern = "\\$E = mc\\^2\\$"
+
+[[validate]]
+kind = "regex"
+pattern = "\\+deprecated\\+"
+
+[[validate]]
+kind = "regex"
+pattern = "_underscored_"

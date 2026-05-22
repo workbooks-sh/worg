@@ -1,0 +1,64 @@
+id = "noweb-references"
+category = "05-blocks"
+prompt = """
+Compose a bash script in an org-mode document from three REUSABLE NAMED snippets that get inlined into a main block at tangle/execute time. Use the org-babel mechanism that lets blocks reference each other by name.
+
+Headline: \"Noweb composition\" (level 1).
+
+The three named snippets:
+
+- `helpers`: defines a `greet()` function that takes a name and prints `hello, <name>`.
+- `data`: defines `names=(alice bob carol)`.
+- `main`: imports `helpers` then `data` (using org-babel's named-block reference syntax), then loops over `\"${names[@]}\"` calling `greet \"$n\"` for each.
+
+Mark the helper and data blocks so they're not exported on their own (only the main composition matters for the final tangle). The main block must opt into the named-reference expansion. Output ONLY the org-mode text.
+"""
+
+[[validate]]
+kind = "parses"
+
+[[validate]]
+kind = "headline_count"
+count = 1
+
+# Three #+NAME: blocks
+[[validate]]
+kind = "regex"
+pattern = "(?im)^\\s*#\\+NAME:\\s*helpers"
+
+[[validate]]
+kind = "regex"
+pattern = "(?im)^\\s*#\\+NAME:\\s*data"
+
+[[validate]]
+kind = "regex"
+pattern = "(?im)^\\s*#\\+NAME:\\s*main"
+
+# :noweb yes header on the main block
+[[validate]]
+kind = "regex"
+pattern = "(?i)#\\+BEGIN_SRC\\s+bash[^\\n]*:noweb\\s+yes"
+
+# Noweb references inside the main block
+[[validate]]
+kind = "regex"
+pattern = "<<helpers>>"
+
+[[validate]]
+kind = "regex"
+pattern = "<<data>>"
+
+# Function definition
+[[validate]]
+kind = "regex"
+pattern = "greet\\(\\)\\s*\\{"
+
+# Array literal
+[[validate]]
+kind = "regex"
+pattern = "names=\\(alice\\s+bob\\s+carol\\)"
+
+# Iteration over the array
+[[validate]]
+kind = "regex"
+pattern = "\\$\\{names\\[@\\]\\}"

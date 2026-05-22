@@ -1,0 +1,68 @@
+id = "sprint-board-from-brief"
+category = "03-planning"
+prompt = """
+A PM just dropped this brief on you. Convert it into an org-mode planning document an engineer could actually work from:
+
+> Two-week sprint, May 25 to June 5. Goal: ship the auth-refactor MVP. \
+> Three workstreams. The capability resolver is the critical path — everything blocks on it. \
+> Once the resolver lands, two parallel workstreams open up: (1) wire the resolver into the existing OAuth flow, \
+> owned by Bob, and (2) write the migration guide for self-hosters, owned by Carol. \
+> The OAuth integration has a hard deadline of June 3 because the demo is June 4. \
+> Migration guide is best-effort by June 5. Bob estimates 5 days of work for the OAuth piece; Carol estimates 3 days for the guide.
+
+The document should:
+
+- Make the dependency structure machine-readable (the dependent tasks should explicitly point to the resolver).
+- Carry deadlines as proper org-mode planning entries on the relevant tasks (not as prose).
+- Carry the owners as headline-attached metadata.
+- Have a top-level goal headline that summarizes the sprint with a stable identifier.
+
+Output ONLY the org-mode text.
+"""
+
+[[validate]]
+kind = "parses"
+
+# A goal + 3 workstreams = 4 headlines minimum
+[[validate]]
+kind = "headline_count"
+count = 4
+
+# Top-level goal with stable ID
+[[validate]]
+kind = "state_match"
+headline_index = 0
+state = "TODO"
+
+[[validate]]
+kind = "regex"
+pattern = "(?i):ID:"
+
+# Hard deadline for the OAuth piece — June 3 active timestamp on a planning line
+[[validate]]
+kind = "regex"
+pattern = "DEADLINE:\\s*<2026-06-03"
+
+# Best-effort deadline for the guide
+[[validate]]
+kind = "regex"
+pattern = "<2026-06-05"
+
+# Owners as machine-readable property (canonical org-mode shape)
+[[validate]]
+kind = "regex"
+pattern = "(?i):ASSIGNED(_TO)?:\\s*[Bb]ob"
+
+[[validate]]
+kind = "regex"
+pattern = "(?i):ASSIGNED(_TO)?:\\s*[Cc]arol"
+
+# Dependency pointer from OAuth or guide back to the resolver task
+[[validate]]
+kind = "regex"
+pattern = "(?i):(DEPENDS_ON|BLOCKED_BY|PARENT):"
+
+# The critical-path task is named in the document
+[[validate]]
+kind = "regex"
+pattern = "(?i)capability resolver"

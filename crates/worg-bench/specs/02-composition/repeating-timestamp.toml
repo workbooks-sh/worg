@@ -1,0 +1,23 @@
+id = "repeating-timestamp"
+category = "02-composition"
+prompt = """
+Schedule a recurring weekly task in org-mode: \"Send weekly status update\" (level-1 TODO). It should fire every Friday starting 2026-05-22. When marked DONE, org-mode should automatically advance the schedule forward by one week so the task reappears the following Friday.
+
+Use the standard org-mode mechanism for recurring scheduled tasks. Output ONLY the org-mode text.
+"""
+
+[[validate]]
+kind = "parses"
+
+[[validate]]
+kind = "headline_count"
+count = 1
+
+[[validate]]
+kind = "state_match"
+headline_index = 0
+state = "TODO"
+
+[[validate]]
+kind = "regex"
+pattern = "SCHEDULED:\\s*<2026-05-22[^>]*Fri[^>]*\\+1w[^>]*>"

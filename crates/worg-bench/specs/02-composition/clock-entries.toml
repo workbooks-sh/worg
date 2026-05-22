@@ -1,0 +1,44 @@
+id = "clock-entries"
+category = "02-composition"
+prompt = """
+Record time tracking in org-mode for the task \"Write the postmortem\" (level-1 TODO). You worked on it across three sessions:
+
+- Wednesday 2026-05-20, 09:00 to 10:30 (1h 30m)
+- Wednesday 2026-05-20, 14:00 to 15:45 (1h 45m)
+- Thursday 2026-05-21, 09:15 to 10:00 (45m)
+
+Use the org-mode-canonical way of recording time-tracked work sessions so an agenda view can roll them up. Include a running total of 4:00 in the same drawer. Output ONLY the org-mode text.
+"""
+
+[[validate]]
+kind = "parses"
+
+[[validate]]
+kind = "headline_count"
+count = 1
+
+[[validate]]
+kind = "state_match"
+headline_index = 0
+state = "TODO"
+
+[[validate]]
+kind = "has_drawer"
+headline_index = 0
+name = "LOGBOOK"
+
+[[validate]]
+kind = "regex"
+pattern = "CLOCK:\\s*\\[2026-05-20[^\\]]*09:00\\]--\\[2026-05-20[^\\]]*10:30\\]\\s*=>\\s*1:30"
+
+[[validate]]
+kind = "regex"
+pattern = "CLOCK:\\s*\\[2026-05-20[^\\]]*14:00\\]--\\[2026-05-20[^\\]]*15:45\\]\\s*=>\\s*1:45"
+
+[[validate]]
+kind = "regex"
+pattern = "CLOCK:\\s*\\[2026-05-21[^\\]]*09:15\\]--\\[2026-05-21[^\\]]*10:00\\]\\s*=>\\s*0:45"
+
+[[validate]]
+kind = "regex"
+pattern = "4:00"

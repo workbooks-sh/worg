@@ -1,0 +1,29 @@
+id = "source-block"
+category = "02-composition"
+prompt = """
+Write an org-mode TODO headline at level 1 titled \"Compute fib(10)\" followed by a Lua source block that defines `fib(n)` recursively and prints `fib(10)`. Use the standard `#+BEGIN_SRC lua ... #+END_SRC` delimiters. Output ONLY the org text.
+"""
+
+[[validate]]
+kind = "parses"
+
+[[validate]]
+kind = "headline_count"
+count = 1
+
+[[validate]]
+kind = "state_match"
+headline_index = 0
+state = "TODO"
+
+[[validate]]
+kind = "regex"
+pattern = "(?i)#\\+BEGIN_SRC[ \\t]+lua"
+
+[[validate]]
+kind = "regex"
+pattern = "(?i)#\\+END_SRC"
+
+[[validate]]
+kind = "contains"
+substring = "fib"

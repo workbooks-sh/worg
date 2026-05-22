@@ -1,0 +1,13 @@
+[package]
+name = "worg-parse"
+description = "Parser + AST + edit-preserving serializer for worg — canonical org-mode for multi-agent orchestration. See packages/worg/WORG.md for the spec."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+orgize = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }

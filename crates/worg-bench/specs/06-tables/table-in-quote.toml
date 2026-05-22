@@ -1,0 +1,55 @@
+id = "table-in-quote"
+category = "06-tables"
+prompt = """
+Write a single org-mode level-1 headline titled \"Embedded reference\" followed by a `#+BEGIN_QUOTE` block that contains a small org-mode table as its body. Org-mode tables nest naturally inside quote blocks — the parser still recognizes the `|...|` rows when they appear inside the QUOTE block.
+
+The table inside the quote block must look like:
+
+  | Field        | Type     |
+  |--------------+----------|
+  | user_id      | uuid     |
+  | created_at   | timestamp|
+  | status       | enum     |
+
+Outside the table but still inside the quote block, add a one-line attribution paragraph (e.g. `— from the schema doc, 2026-05-21`).
+
+Use the standard `#+BEGIN_QUOTE` / `#+END_QUOTE` delimiters. Output ONLY the org-mode text.
+"""
+
+[[validate]]
+kind = "parses"
+
+[[validate]]
+kind = "headline_count"
+count = 1
+
+[[validate]]
+kind = "regex"
+pattern = "(?i)#\\+BEGIN_QUOTE"
+
+[[validate]]
+kind = "regex"
+pattern = "(?i)#\\+END_QUOTE"
+
+# Table inside the quote block: BEGIN_QUOTE ... table ... END_QUOTE
+[[validate]]
+kind = "regex"
+pattern = "(?is)#\\+BEGIN_QUOTE.*\\|\\s*Field\\s*\\|.*\\|\\s*user_id\\s*\\|.*#\\+END_QUOTE"
+
+# All three data rows
+[[validate]]
+kind = "regex"
+pattern = "(?m)^\\s*\\|\\s*user_id\\s*\\|\\s*uuid"
+
+[[validate]]
+kind = "regex"
+pattern = "(?m)^\\s*\\|\\s*created_at\\s*\\|\\s*timestamp"
+
+[[validate]]
+kind = "regex"
+pattern = "(?m)^\\s*\\|\\s*status\\s*\\|\\s*enum"
+
+# Attribution paragraph also inside the quote
+[[validate]]
+kind = "regex"
+pattern = "(?i)2026-05-21"

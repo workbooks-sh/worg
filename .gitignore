@@ -1,0 +1,17 @@
+target/
+Cargo.lock
+*.swp
+.DS_Store
+
+# wasm-pack outputs (per binding target)
+crates/worg-wasm/pkg/
+crates/worg-wasm/pkg-node/
+crates/worg-wasm/pkg-web/
+
+# Elixir build artifacts
+elixir/worg_runtime/_build/
+elixir/worg_runtime/deps/
+elixir/worg_runtime/.elixir_ls/
+
+# Rustler precompiled NIF cache
+crates/worg-nif/native/

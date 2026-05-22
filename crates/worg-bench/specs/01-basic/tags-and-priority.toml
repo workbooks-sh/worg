@@ -1,0 +1,27 @@
+id = "tags-and-priority"
+category = "01-basic"
+prompt = """
+Write a single org-mode TODO headline at level 1 with priority A, title \"Patch auth bug\", and the tags :security: and :hotfix: (in that order). Output ONLY the org-mode text.
+"""
+
+[[validate]]
+kind = "parses"
+
+[[validate]]
+kind = "headline_count"
+count = 1
+
+[[validate]]
+kind = "state_match"
+headline_index = 0
+state = "TODO"
+
+[[validate]]
+kind = "priority_match"
+headline_index = 0
+priority = "A"
+
+[[validate]]
+kind = "tags_contain"
+headline_index = 0
+tags = ["security", "hotfix"]

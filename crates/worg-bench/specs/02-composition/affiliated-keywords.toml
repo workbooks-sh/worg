@@ -1,0 +1,47 @@
+id = "affiliated-keywords"
+category = "02-composition"
+prompt = """
+Write a single org-mode level-1 headline titled \"Latency by region\" followed by an org-mode table preceded by THREE different affiliated keywords on the lines immediately above the table (one per line):
+
+  #+NAME: latency-table
+  #+CAPTION: Mean p99 latency by region, last 24h
+  #+ATTR_HTML: :class data-table :width 100%
+
+Then the table:
+
+  | Region   | p99 (ms) |
+  |----------+----------|
+  | us-east  | 42       |
+  | eu-west  | 138      |
+  | ap-south | 510      |
+
+Output ONLY the org-mode text.
+"""
+
+[[validate]]
+kind = "parses"
+
+[[validate]]
+kind = "headline_count"
+count = 1
+
+[[validate]]
+kind = "regex"
+pattern = "(?im)^\\s*#\\+NAME:\\s*latency-table"
+
+[[validate]]
+kind = "regex"
+pattern = "(?im)^\\s*#\\+CAPTION:\\s*Mean p99 latency"
+
+[[validate]]
+kind = "regex"
+pattern = "(?im)^\\s*#\\+ATTR_HTML:"
+
+# Order: NAME → CAPTION → ATTR_HTML → table
+[[validate]]
+kind = "regex"
+pattern = "(?is)#\\+NAME:.*#\\+CAPTION:.*#\\+ATTR_HTML:.*\\|\\s*Region\\s*\\|"
+
+[[validate]]
+kind = "regex"
+pattern = "(?m)^\\|\\s*ap-south\\s*\\|\\s*510"

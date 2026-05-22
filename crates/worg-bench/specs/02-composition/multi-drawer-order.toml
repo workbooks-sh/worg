@@ -1,0 +1,49 @@
+id = "multi-drawer-order"
+category = "02-composition"
+prompt = """
+You're tracking work on the \"Profile slow endpoint\" investigation. For this task, capture in org-mode ALL of the following alongside the headline so they travel with the work:
+
+- A stable identifier (use `profile-slow`) so other tasks can reference this one.
+- The time spent: one work session on 2026-05-20 (Wed) from 09:00 to 10:15 (1:15 logged).
+- A history entry recording when you flipped the state to in-progress.
+- A finding you noted while profiling.
+
+The task is a TODO at level 1. Use the canonical org-mode container for each of those four pieces of information, and place them in the conventional org-mode order. Output ONLY the org-mode text.
+"""
+
+[[validate]]
+kind = "parses"
+
+[[validate]]
+kind = "headline_count"
+count = 1
+
+[[validate]]
+kind = "state_match"
+headline_index = 0
+state = "TODO"
+
+[[validate]]
+kind = "has_property"
+headline_index = 0
+name = "ID"
+value = "profile-slow"
+
+[[validate]]
+kind = "has_drawer"
+headline_index = 0
+name = "LOGBOOK"
+
+[[validate]]
+kind = "has_drawer"
+headline_index = 0
+name = "NOTES"
+
+# Strict drawer order: PROPERTIES before CLOCK before LOGBOOK before NOTES
+[[validate]]
+kind = "regex"
+pattern = "(?s):PROPERTIES:.*:END:.*:CLOCK:.*:END:.*:LOGBOOK:.*:END:.*:NOTES:.*:END:"
+
+[[validate]]
+kind = "regex"
+pattern = "CLOCK:\\s*\\[2026-05-20[^\\]]*\\]--\\[2026-05-20[^\\]]*\\]\\s*=>\\s*1:15"

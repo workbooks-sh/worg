@@ -1,0 +1,68 @@
+id = "orchestrator-board"
+category = "03-planning"
+prompt = """
+Write a realistic 6-headline org-mode document modeling an orchestrator board for shipping an MVP. Use ONLY standard org-mode states (TODO and DONE). Structure:
+
+- Level-1 TODO root titled \"Ship release v1.2\" with :ID: release-v1-2 and a `[1/2]` statistics cookie reflecting that 1 of 2 level-2 children is DONE.
+
+  - Level-2 DONE child \"Cut release branch\" with :ID: cut-branch.
+  - Level-2 TODO child \"Run regression suite\" with :ID: run-regression and `[1/2]` statistics cookie reflecting that 1 of 2 level-3 children is DONE.
+    - Level-3 DONE grandchild \"Run unit tests\" with :ID: unit-tests.
+    - Level-3 TODO grandchild \"Run smoke deploy\" with :ID: smoke-deploy and :BLOCKED_BY: cut-branch (referencing the sibling-of-parent's ID — this is allowed and common in real boards).
+
+That's 5 distinct subtree headlines under the root → 6 total.
+
+Output ONLY the org-mode text. Statistics cookies must be present in the parent titles.
+"""
+
+[[validate]]
+kind = "parses"
+
+[[validate]]
+kind = "headline_count"
+count = 5
+
+[[validate]]
+kind = "state_match"
+headline_index = 0
+state = "TODO"
+
+[[validate]]
+kind = "has_property"
+headline_index = 0
+name = "ID"
+value = "release-v1-2"
+
+[[validate]]
+kind = "regex"
+pattern = "Ship release v1\\.2.*\\[1/2\\]"
+
+[[validate]]
+kind = "state_match"
+headline_index = 1
+state = "DONE"
+
+[[validate]]
+kind = "state_match"
+headline_index = 2
+state = "TODO"
+
+[[validate]]
+kind = "regex"
+pattern = "Run regression suite.*\\[1/2\\]"
+
+[[validate]]
+kind = "state_match"
+headline_index = 3
+state = "DONE"
+
+[[validate]]
+kind = "state_match"
+headline_index = 4
+state = "TODO"
+
+[[validate]]
+kind = "has_property"
+headline_index = 4
+name = "BLOCKED_BY"
+value = "cut-branch"

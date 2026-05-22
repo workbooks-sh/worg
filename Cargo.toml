@@ -1,0 +1,46 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/worg-parse",
+    "crates/worg-query",
+    "crates/worg-cli",
+    "crates/worg-lint",
+    "crates/worg-nif",
+    "crates/worg-wasm",
+    "crates/worg-bench",
+]
+
+[workspace.package]
+version = "0.0.0"
+edition = "2021"
+license = "MIT OR Apache-2.0"
+publish = false
+
+[workspace.dependencies]
+# Org-mode parser. Two candidates evaluated during wb-4vhr.3:
+#
+#   orgize 0.10.0-alpha.10
+#     - Most well-known Rust org parser, ~10k LoC, active development
+#     - Element-tree AST, designed for read-mostly access
+#     - Serialization is reconstructive, not edit-preserving — may drift
+#       on round-trip (load-bearing invariant for worg)
+#
+#   starsector
+#     - Newer, explicitly designed for "structural parsing + emitting
+#       with edit minimization" — aligns with worg's round-trip
+#       requirement
+#     - Less battle-tested; smaller community
+#
+# Default to orgize; wb-4vhr.3 may swap if round-trip testing fails.
+orgize = "0.10.0-alpha.10"
+
+# Serde for AST <-> JSON crossing the NIF + WASM boundaries.
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+# CLI framework.
+clap = { version = "4", features = ["derive"] }
+
+# Error handling.
+thiserror = "2"
+anyhow = "1"

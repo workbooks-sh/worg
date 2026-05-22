@@ -1,0 +1,23 @@
+id = "property-drawer"
+category = "01-basic"
+prompt = """
+Write a single org-mode TODO headline titled \"Migrate to wasmtime\" with a :PROPERTIES: drawer containing the property :ID: with the value migrate-wasmtime. Output ONLY the org-mode text.
+"""
+
+[[validate]]
+kind = "parses"
+
+[[validate]]
+kind = "headline_count"
+count = 1
+
+[[validate]]
+kind = "state_match"
+headline_index = 0
+state = "TODO"
+
+[[validate]]
+kind = "has_property"
+headline_index = 0
+name = "ID"
+value = "migrate-wasmtime"

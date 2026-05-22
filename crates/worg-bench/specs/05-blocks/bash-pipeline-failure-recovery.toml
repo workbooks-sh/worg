@@ -1,0 +1,65 @@
+id = "bash-pipeline-failure-recovery"
+category = "05-blocks"
+prompt = """
+Document a backup-pipeline script in an org-mode file. Headline: \"Nightly DB backup with retry\" (level 1). Embed the actual bash script as a source block.
+
+Behavior the script needs:
+
+- It dumps a Postgres database via `pg_dump` and pipes the output through `gzip` into a timestamped file in `/var/backups/`.
+- A failure in EITHER `pg_dump` OR `gzip` must fail the whole pipeline (not silently let one tool's exit code mask the other's).
+- The script retries the dump up to 3 times before giving up, with a short sleep between attempts.
+- The database name comes from the env var `DB_NAME`; if it's missing, the script must abort with a clear error (not run against a default that could clobber production).
+- All file paths are quoted properly so weird filenames don't break the pipeline.
+
+Use whatever bash idioms are appropriate. Output ONLY the org-mode text.
+"""
+
+[[validate]]
+kind = "parses"
+
+[[validate]]
+kind = "headline_count"
+count = 1
+
+[[validate]]
+kind = "regex"
+pattern = "(?i)#\\+BEGIN_SRC\\s+bash"
+
+[[validate]]
+kind = "regex"
+pattern = "(?i)#\\+END_SRC"
+
+# Pipefail or pipestatus-based pipeline failure handling
+[[validate]]
+kind = "regex"
+pattern = "(?i)(pipefail|PIPESTATUS)"
+
+# pg_dump pipe gzip
+[[validate]]
+kind = "regex"
+pattern = "pg_dump.*\\|.*gzip"
+
+# Retry loop (for / while)
+[[validate]]
+kind = "regex"
+pattern = "(?im)^\\s*(for|while)\\s"
+
+# Required env var check (parameter expansion ${VAR:?...} OR explicit guard)
+[[validate]]
+kind = "regex"
+pattern = "(?i)(\\$\\{DB_NAME:[?]|\\[\\s*-z\\s*\"\\$\\{?DB_NAME)"
+
+# sleep between retries
+[[validate]]
+kind = "regex"
+pattern = "(?m)\\bsleep\\b"
+
+# /var/backups path used
+[[validate]]
+kind = "regex"
+pattern = "/var/backups"
+
+# Date/timestamp captured into the filename (date command)
+[[validate]]
+kind = "regex"
+pattern = "(?i)\\$\\(date|\\bdate\\s+\\+"

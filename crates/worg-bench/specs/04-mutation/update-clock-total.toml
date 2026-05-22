@@ -1,0 +1,71 @@
+id = "update-clock-total"
+category = "04-mutation"
+prompt = """
+Given this org-mode block:
+
+```
+* TODO Profile the slow query
+:PROPERTIES:
+:ID: profile-query
+:END:
+:LOGBOOK:
+CLOCK: [2026-05-19 Mon 09:00]--[2026-05-19 Mon 10:30] =>  1:30
+CLOCK: [2026-05-19 Mon 14:15]--[2026-05-19 Mon 15:45] =>  1:30
+CLOCK_TOTAL: 3:00
+:END:
+```
+
+Append a fourth CLOCK entry and update the CLOCK_TOTAL line:
+
+- New entry: `CLOCK: [2026-05-20 Tue 09:00]--[2026-05-20 Tue 10:45] =>  1:45`
+- New total: 3:00 + 1:45 = 4:45 → update `CLOCK_TOTAL:` to `4:45`
+
+The new CLOCK entry must appear AFTER the existing two and BEFORE the CLOCK_TOTAL line. All original entries must be preserved verbatim. Output ONLY the modified org-mode text.
+"""
+
+[[validate]]
+kind = "parses"
+
+[[validate]]
+kind = "headline_count"
+count = 1
+
+[[validate]]
+kind = "state_match"
+headline_index = 0
+state = "TODO"
+
+[[validate]]
+kind = "has_property"
+headline_index = 0
+name = "ID"
+value = "profile-query"
+
+# Existing entries preserved
+[[validate]]
+kind = "contains"
+substring = "CLOCK: [2026-05-19 Mon 09:00]--[2026-05-19 Mon 10:30] =>  1:30"
+
+[[validate]]
+kind = "contains"
+substring = "CLOCK: [2026-05-19 Mon 14:15]--[2026-05-19 Mon 15:45] =>  1:30"
+
+# New entry inserted
+[[validate]]
+kind = "regex"
+pattern = "CLOCK:\\s*\\[2026-05-20[^\\]]*09:00\\]--\\[2026-05-20[^\\]]*10:45\\]\\s*=>\\s*1:45"
+
+# Total updated to 4:45 (NOT 3:00 — the failure mode this catches: model adds entry but forgets to recompute the total)
+[[validate]]
+kind = "regex"
+pattern = "CLOCK_TOTAL:\\s*4:45"
+
+# Old total of 3:00 must NOT remain
+[[validate]]
+kind = "regex"
+pattern = "(?s)^(?!.*CLOCK_TOTAL:\\s*3:00).*$"
+
+# Order: 3 CLOCK entries in chronological order, then CLOCK_TOTAL
+[[validate]]
+kind = "regex"
+pattern = "(?s)2026-05-19[^C]*09:00[^C]*CLOCK:[^C]*2026-05-19[^C]*14:15[^C]*CLOCK:[^C]*2026-05-20[^C]*CLOCK_TOTAL"

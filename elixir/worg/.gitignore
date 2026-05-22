@@ -1,0 +1,16 @@
+# Mix build artifacts
+/_build/
+/cover/
+/deps/
+/doc/
+/.fetch
+erl_crash.dump
+*.ez
+*.beam
+
+# Rustler-generated NIF binaries (built locally per-host)
+/priv/native/
+
+# Editor cruft
+*.swp
+.DS_Store

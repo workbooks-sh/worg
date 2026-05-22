@@ -1,0 +1,51 @@
+id = "three-level-plan"
+category = "03-planning"
+prompt = """
+You are planning a small project: \"Add dark mode to a SvelteKit app.\"
+
+Write a single org-mode document with this structure using standard TODO/DONE keywords only:
+
+- One level-1 TODO headline (the goal), title \"Add dark mode to SvelteKit app\". Give it an :ID: property of \"dark-mode\".
+- Three level-2 TODO children that decompose the work. Choose meaningful titles like:
+  - \"Define color tokens for light + dark\"
+  - \"Wire prefers-color-scheme media query\"
+  - \"Add toggle component in header\"
+- Under the first level-2 (color tokens), add ONE level-3 TODO child titled \"Audit existing hardcoded colors\".
+
+Output ONLY the org-mode text. No prose, no fences.
+"""
+
+[[validate]]
+kind = "parses"
+
+[[validate]]
+kind = "headline_count"
+count = 5
+
+[[validate]]
+kind = "state_match"
+headline_index = 0
+state = "TODO"
+
+[[validate]]
+kind = "level_match"
+headline_index = 0
+level = 1
+
+[[validate]]
+kind = "has_property"
+headline_index = 0
+name = "ID"
+value = "dark-mode"
+
+[[validate]]
+kind = "level_match"
+headline_index = 1
+level = 2
+
+# Depth-first: root[0], child1[1], grandchild[2], child2[3], child3[4].
+# The level-3 grandchild appears at index 2.
+[[validate]]
+kind = "level_match"
+headline_index = 2
+level = 3

@@ -1,0 +1,48 @@
+id = "table-with-hlines-and-groups"
+category = "06-tables"
+prompt = """
+Write a single org-mode level-1 headline titled \"Capacity planning\" followed by an org-mode table that uses MULTIPLE horizontal-line rows (hlines) to visually group data, plus a final hline before a summary row:
+
+  | Region   | Cores | RAM (GB) | Cost ($/mo) |
+  |----------+-------+----------+-------------|
+  | us-east  |    32 |      128 |         420 |
+  | eu-west  |    16 |       64 |         210 |
+  |----------+-------+----------+-------------|
+  | ap-south |    24 |       96 |         310 |
+  | sa-east  |     8 |       32 |         110 |
+  |----------+-------+----------+-------------|
+  | TOTAL    |    80 |      320 |        1050 |
+
+Three hlines total: one after the header, one between the two regional groupings (americas/europe vs asia/south-america), and one before the TOTAL row. Output ONLY the org-mode text.
+"""
+
+[[validate]]
+kind = "parses"
+
+[[validate]]
+kind = "headline_count"
+count = 1
+
+# Header row
+[[validate]]
+kind = "regex"
+pattern = "(?m)^\\|\\s*Region\\s*\\|\\s*Cores\\s*\\|\\s*RAM"
+
+# At least three hline rows
+[[validate]]
+kind = "regex"
+pattern = "(?s)\\|[-+|]+\\|.*\\|[-+|]+\\|.*\\|[-+|]+\\|"
+
+# Data rows from both groups
+[[validate]]
+kind = "regex"
+pattern = "(?m)^\\|\\s*us-east\\s*\\|"
+
+[[validate]]
+kind = "regex"
+pattern = "(?m)^\\|\\s*ap-south\\s*\\|"
+
+# Final TOTAL row
+[[validate]]
+kind = "regex"
+pattern = "(?m)^\\|\\s*TOTAL\\s*\\|\\s*80\\s*\\|\\s*320\\s*\\|\\s*1050"

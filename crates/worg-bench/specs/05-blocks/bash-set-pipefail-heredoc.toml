@@ -1,0 +1,65 @@
+id = "bash-set-pipefail-heredoc"
+category = "05-blocks"
+prompt = """
+Document a sandbox bootstrap script in an org-mode file. Headline (level 1): \"Bootstrap a fresh sandbox\". Embed the actual bash script as an org-mode source block.
+
+The script needs to be production-robust:
+
+- Caller can override the target dir via env var (use `SANDBOX_DIR`, defaulting to `/tmp/wb-sandbox`).
+- If `git` isn't installed, fail cleanly with exit 1 rather than silently continuing.
+- Write a multi-line `config.toml` file into the sandbox dir that references the chosen target path.
+- Don't break on paths containing spaces or shell metacharacters.
+- Fail fast on any error in the script, on undefined variables, and on broken pipes.
+
+Use idiomatic defensive-bash patterns. Output ONLY the org-mode text.
+"""
+
+[[validate]]
+kind = "parses"
+
+[[validate]]
+kind = "headline_count"
+count = 1
+
+[[validate]]
+kind = "regex"
+pattern = "(?i)#\\+BEGIN_SRC\\s+bash"
+
+[[validate]]
+kind = "regex"
+pattern = "(?i)#\\+END_SRC"
+
+# set -euo pipefail must be present
+[[validate]]
+kind = "regex"
+pattern = "set\\s+-euo\\s+pipefail"
+
+# Parameter expansion with default
+[[validate]]
+kind = "regex"
+pattern = "\\$\\{SANDBOX_DIR:-/tmp/wb-sandbox\\}"
+
+# Heredoc syntax
+[[validate]]
+kind = "regex"
+pattern = "<<\\s*['\"]?EOF['\"]?"
+
+# Closing heredoc marker on its own line
+[[validate]]
+kind = "regex"
+pattern = "(?m)^\\s*EOF\\s*$"
+
+# command -v git check
+[[validate]]
+kind = "regex"
+pattern = "command\\s+-v\\s+git"
+
+# Failure path
+[[validate]]
+kind = "regex"
+pattern = "exit\\s+1"
+
+# Quoted expansion (double quotes around the parameter-expansion form)
+[[validate]]
+kind = "regex"
+pattern = "\"\\$\\{SANDBOX_DIR:-/tmp/wb-sandbox\\}\""

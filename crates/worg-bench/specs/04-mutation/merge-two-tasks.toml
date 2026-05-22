@@ -1,0 +1,91 @@
+id = "merge-two-tasks"
+category = "04-mutation"
+prompt = """
+Given these two sibling org-mode headlines:
+
+```
+* TODO Audit auth logging
+:PROPERTIES:
+:ID: audit-auth
+:ASSIGNED_TO: shane
+:END:
+:LOGBOOK:
+- 2026-05-19: identified missing audit fields in /v1/auth/* endpoints
+:END:
+
+* TODO Wire structured fields into auth logger
+:PROPERTIES:
+:ID: wire-structured
+:ASSIGNED_TO: bob
+:END:
+:LOGBOOK:
+- 2026-05-20: drafted the field schema; needs review
+:END:
+```
+
+These two tasks are really one piece of work and should be merged. Produce a SINGLE level-1 TODO headline that combines them:
+
+1. Title: \"Audit auth logging and wire structured fields\" (combines both titles cleanly; commas/conjunctions allowed).
+2. :PROPERTIES: drawer keeps :ID: from the FIRST headline (`audit-auth`), :ASSIGNED_TO: from the FIRST headline (`shane`), AND adds a new property `:MERGED_FROM:` with the value `wire-structured` recording the second task's ID.
+3. :LOGBOOK: drawer contains BOTH original entries in chronological order (2026-05-19 then 2026-05-20).
+4. Add a third LOGBOOK entry dated 2026-05-21 that says \"2026-05-21: merged from wire-structured\" so the merge itself is recorded.
+
+The output must contain exactly ONE level-1 headline. Output ONLY the merged org-mode text.
+"""
+
+[[validate]]
+kind = "parses"
+
+[[validate]]
+kind = "headline_count"
+count = 1
+
+[[validate]]
+kind = "state_match"
+headline_index = 0
+state = "TODO"
+
+[[validate]]
+kind = "has_property"
+headline_index = 0
+name = "ID"
+value = "audit-auth"
+
+[[validate]]
+kind = "has_property"
+headline_index = 0
+name = "ASSIGNED_TO"
+value = "shane"
+
+[[validate]]
+kind = "has_property"
+headline_index = 0
+name = "MERGED_FROM"
+value = "wire-structured"
+
+[[validate]]
+kind = "has_drawer"
+headline_index = 0
+name = "LOGBOOK"
+
+[[validate]]
+kind = "contains"
+substring = "2026-05-19: identified missing audit fields"
+
+[[validate]]
+kind = "contains"
+substring = "2026-05-20: drafted the field schema"
+
+[[validate]]
+kind = "contains"
+substring = "2026-05-21: merged from wire-structured"
+
+# Chronological LOGBOOK order
+[[validate]]
+kind = "regex"
+pattern = "(?s)2026-05-19.*2026-05-20.*2026-05-21"
+
+# Bob's old ASSIGNED_TO must NOT remain
+[[validate]]
+kind = "regex"
+pattern = "(?s)^(?!.*:ASSIGNED_TO:\\s+bob).*$"

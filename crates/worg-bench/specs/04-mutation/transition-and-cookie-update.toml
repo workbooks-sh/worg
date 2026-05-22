@@ -1,0 +1,79 @@
+id = "transition-and-cookie-update"
+category = "04-mutation"
+prompt = """
+Given this org-mode block:
+
+```
+* TODO Onboarding workflow [1/3]
+:PROPERTIES:
+:ID: onboarding
+:END:
+
+** DONE Welcome email
+** TODO Verify domain
+** TODO Provision team workspace
+```
+
+Transition the SECOND child (\"Verify domain\") from TODO to DONE, and update the parent's statistics cookie from `[1/3]` to `[2/3]` to reflect the new completion ratio.
+
+Constraints:
+- Only the second child's state changes; first and third stay as they were.
+- Parent statistics cookie MUST be updated (the failure mode is transitioning the child but forgetting the cookie).
+- Properties drawer must be preserved untouched.
+
+Output ONLY the modified org-mode text.
+"""
+
+[[validate]]
+kind = "parses"
+
+[[validate]]
+kind = "headline_count"
+count = 4
+
+[[validate]]
+kind = "state_match"
+headline_index = 0
+state = "TODO"
+
+[[validate]]
+kind = "regex"
+pattern = "Onboarding workflow\\s+\\[2/3\\]"
+
+# Old cookie must NOT remain
+[[validate]]
+kind = "regex"
+pattern = "(?s)^(?!.*Onboarding workflow\\s+\\[1/3\\]).*$"
+
+[[validate]]
+kind = "has_property"
+headline_index = 0
+name = "ID"
+value = "onboarding"
+
+[[validate]]
+kind = "state_match"
+headline_index = 1
+state = "DONE"
+
+[[validate]]
+kind = "regex"
+pattern = "(?m)^\\*\\*\\s+DONE\\s+Welcome email"
+
+[[validate]]
+kind = "state_match"
+headline_index = 2
+state = "DONE"
+
+[[validate]]
+kind = "regex"
+pattern = "(?m)^\\*\\*\\s+DONE\\s+Verify domain"
+
+[[validate]]
+kind = "state_match"
+headline_index = 3
+state = "TODO"
+
+[[validate]]
+kind = "regex"
+pattern = "(?m)^\\*\\*\\s+TODO\\s+Provision team workspace"

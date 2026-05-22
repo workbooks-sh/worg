@@ -1,0 +1,47 @@
+id = "constraints-drawer"
+category = "03-planning"
+prompt = """
+Write a single org-mode TODO headline at level 1 titled \"Add /healthz endpoint\" with:
+
+- An :ID: property of \"healthz\"
+- A :CONSTRAINTS: drawer containing three bullet entries:
+  - response body must be valid JSON
+  - endpoint must NOT require auth
+  - response size must be < 1 KB
+- A :SUCCESS_CRITERIA: drawer with one entry:
+  - GET /healthz returns 200 with {\"status\":\"ok\"}
+
+Output ONLY the org-mode text.
+"""
+
+[[validate]]
+kind = "parses"
+
+[[validate]]
+kind = "headline_count"
+count = 1
+
+[[validate]]
+kind = "state_match"
+headline_index = 0
+state = "TODO"
+
+[[validate]]
+kind = "has_property"
+headline_index = 0
+name = "ID"
+value = "healthz"
+
+[[validate]]
+kind = "has_drawer"
+headline_index = 0
+name = "CONSTRAINTS"
+
+[[validate]]
+kind = "has_drawer"
+headline_index = 0
+name = "SUCCESS_CRITERIA"
+
+[[validate]]
+kind = "contains"
+substring = "must NOT require auth"

@@ -1,0 +1,42 @@
+id = "comment-keywords"
+category = "01-basic"
+prompt = """
+Write an org-mode document that exercises org-mode's two distinct comment mechanisms:
+
+1. A file-level line comment: a line starting with `# ` (octothorpe + space) that org-mode entirely ignores. Make it say: `# scratch notes — not exported`.
+
+2. A level-1 TODO headline with the COMMENT keyword between the state and the title — `* TODO COMMENT Drafty title` — which marks the entire subtree as excluded from agenda/export.
+
+3. A second level-1 TODO headline titled \"Real work\" (no COMMENT) so we can confirm the parser distinguishes the two.
+
+4. Inside the \"Real work\" subtree, a `#+BEGIN_COMMENT` ... `#+END_COMMENT` block containing one line of text.
+
+Output ONLY the org-mode text. No other content.
+"""
+
+[[validate]]
+kind = "parses"
+
+[[validate]]
+kind = "headline_count"
+count = 2
+
+[[validate]]
+kind = "regex"
+pattern = "(?m)^#\\s+scratch notes"
+
+[[validate]]
+kind = "regex"
+pattern = "(?m)^\\*\\s+TODO\\s+COMMENT\\s+Drafty"
+
+[[validate]]
+kind = "regex"
+pattern = "(?m)^\\*\\s+TODO\\s+Real work"
+
+[[validate]]
+kind = "regex"
+pattern = "(?i)#\\+BEGIN_COMMENT"
+
+[[validate]]
+kind = "regex"
+pattern = "(?i)#\\+END_COMMENT"

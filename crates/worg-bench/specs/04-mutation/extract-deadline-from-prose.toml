@@ -1,0 +1,75 @@
+id = "extract-deadline-from-prose"
+category = "04-mutation"
+prompt = """
+Given this org-mode block:
+
+```
+* TODO Ship v1.3
+:PROPERTIES:
+:ID: ship-v1-3
+:END:
+
+We need to wrap this up by 2026-06-15 — the customer demo is the
+following week and any slip puts us in conflict with their procurement
+freeze.
+
+Open items: regression suite, accessibility audit, docs polish.
+```
+
+Restructure the prose so the date deadline becomes a proper org-mode `DEADLINE:` planning line. Specifically:
+
+1. ADD a `DEADLINE: <2026-06-15>` line on the line immediately AFTER the `* TODO Ship v1.3` headline and BEFORE the `:PROPERTIES:` drawer.
+2. The active timestamp `<2026-06-15>` must use angle brackets, not square brackets.
+3. The original prose paragraph must be MODIFIED so it no longer states the bare date — replace `2026-06-15` with a phrase like `the deadline above` or `this week's deadline`, so the date isn't duplicated. The rest of the prose (the customer-demo context, the procurement-freeze reason) must be preserved.
+4. The second paragraph about \"Open items: …\" must be preserved verbatim.
+
+Output ONLY the modified org-mode text.
+"""
+
+[[validate]]
+kind = "parses"
+
+[[validate]]
+kind = "headline_count"
+count = 1
+
+[[validate]]
+kind = "state_match"
+headline_index = 0
+state = "TODO"
+
+[[validate]]
+kind = "has_property"
+headline_index = 0
+name = "ID"
+value = "ship-v1-3"
+
+[[validate]]
+kind = "regex"
+pattern = "DEADLINE:\\s*<2026-06-15>"
+
+# The deadline line comes BEFORE the properties drawer
+[[validate]]
+kind = "regex"
+pattern = "(?s)DEADLINE:\\s*<2026-06-15>.*:PROPERTIES:"
+
+# The bare date should NOT still appear in the prose (only inside the DEADLINE line)
+# More precisely: there should be exactly one literal "2026-06-15" in the document.
+[[validate]]
+kind = "regex"
+pattern = "^(?:[^2]|2(?!026-06-15))*2026-06-15(?:[^2]|2(?!026-06-15))*$"
+
+# Customer-demo context preserved
+[[validate]]
+kind = "contains"
+substring = "customer demo"
+
+# Procurement-freeze reason preserved
+[[validate]]
+kind = "contains"
+substring = "procurement"
+
+# Second paragraph preserved verbatim
+[[validate]]
+kind = "contains"
+substring = "Open items: regression suite, accessibility audit, docs polish."

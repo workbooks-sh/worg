@@ -1,0 +1,491 @@
+#+TITLE: Mini coffee — gamut commercial pipeline (worg validation draft)
+#+AUTHOR: hand-mapped from gamut/001-mini-coffee-gamut-dryrun-2026-05-20T14-30-44-540Z
+#+CATEGORY: gamut-pipeline
+#+TODO: TODO(t) DOING(g) BLOCKED(b@/!) | DONE(d!) FAILED(f@) ABANDONED(a@)
+#+PROPERTY: header-args :exports both :dir .
+
+# Maps:
+#   - commercial.yaml stages         -> level-1 headlines
+#   - tool invocations within stage  -> level-2 headlines OR source blocks
+#   - success_criteria               -> level-3 validator headlines under stage
+#   - tool args                      -> source-block :header-args
+#   - tool stdout/exit                -> #+RESULTS:
+#   - state transitions              -> :LOGBOOK:
+#   - artifact paths produced        -> :ARTIFACT: properties
+#   - inter-stage ordering           -> :DEPENDS_ON: linking by :ID:
+
+* Run metadata
+:PROPERTIES:
+:ID:               run-2026-05-20T14-30-44-540Z
+:RUN_ID:           gamut/001-mini-coffee-gamut-dryrun-2026-05-20T14-30-44-540Z
+:PIPELINE:         commercial
+:PIPELINE_VERSION: 3.0.0
+:AGENT:            gamut
+:MODEL:            gemini-3.5-flash
+:DEEP_MODEL:       gemini-3.1-pro-preview
+:BUDGET_USD:       0.05
+:MAX_WALL_SECONDS: 1800
+:STARTED_AT:       [2026-05-20 Tue 14:30:44]
+:ENDED_AT:         [2026-05-20 Tue 14:31:45]
+:DURATION_MS:      60994
+:EXIT_CODE:        1
+:END:
+
+** Brief                                                   :input:9-line:
+The 9-line ad-creative brief that seeds the pipeline. Verbatim from
+=evals/briefs/001-mini-coffee.md=.
+
+#+begin_src markdown :tangle brief.md
+PRODUCT: A generic ceramic pour-over coffee carafe (no brand)
+AUDIENCE: Specialty-coffee enthusiasts who care about brew ritual
+INSIGHT: Most ads show coffee being chugged; the ritual is the product
+PROMISE: Slow brewing turns morning into a moment
+PROOF: Hand-poured, hand-held, hand-watched
+TONE: still, observational, A24
+MUSIC: ambient piano, single phrase
+CALL: Pour better
+RUNTIME: 5
+#+end_src
+
+* DONE [#A] Stage 1 — research                       :stage:gamut-director:
+CLOSED: [2026-05-20 Tue 14:30:58]
+:PROPERTIES:
+:ID:                  stage-research
+:ASSIGNED_AGENT:      gamut-director
+:STAGE_ORDER:         1
+:TOOLS_AVAILABLE:     brief.check
+:ARTIFACTS_OUT:       brief.md
+:DESCRIPTION:         Pick concept + distill 9-line brief. Downstream
+                      stages assume slot-filled input.
+:END:
+:LOGBOOK:
+- State "DOING"      from "TODO"       [2026-05-20 Tue 14:30:48]
+- State "DONE"       from "DOING"      [2026-05-20 Tue 14:30:58]
+:END:
+
+** Tool: fs.write brief.md
+:PROPERTIES:
+:TOOL:        fs.write
+:STEP:        4
+:COST_USD:    0.0018
+:ARTIFACT:    file:./brief.md
+:END:
+
+#+begin_src fs-write :path "brief.md"
+PRODUCT: A generic ceramic pour-over coffee carafe (no brand)
+AUDIENCE: Specialty-coffee enthusiasts who care about brew ritual
+INSIGHT: Most ads show coffee being chugged; the ritual is the product
+PROMISE: Slow brewing turns morning into a moment
+PROOF: Hand-poured, hand-held, hand-watched
+TONE: still, observational, A24
+MUSIC: ambient piano, single phrase
+CALL: Pour better
+RUNTIME: 5
+#+end_src
+
+#+RESULTS:
+: ok=true
+
+** DONE Validator: brief.check
+:PROPERTIES:
+:KIND:        brief_check_passes
+:ARG_PATH:    brief.md
+:STEP:        5
+:END:
+
+#+begin_src shell :exports both
+brief check brief.md
+#+end_src
+
+#+RESULTS:
+: exit=0
+: 3 bytes stdout
+: 0 output file(s)
+
+** DONE Validator: artifact_exists brief.md
+:PROPERTIES:
+:KIND:        artifact_exists
+:ARG_PATH:    brief.md
+:END:
+
+* DONE [#A] Stage 2 — script                         :stage:gamut-director:
+CLOSED: [2026-05-20 Tue 14:31:05]
+:PROPERTIES:
+:ID:              stage-script
+:ASSIGNED_AGENT:  gamut-director
+:STAGE_ORDER:     2
+:DEPENDS_ON:      [[id:stage-research]]
+:TOOLS_AVAILABLE: screenplay.parse
+:ARTIFACTS_IN:    brief.md
+:ARTIFACTS_OUT:   script.fountain screenplay.json
+:DESCRIPTION:     Fountain screenplay, 4-6 scenes, validated
+                  structurally before velocity sees it.
+:END:
+:LOGBOOK:
+- State "DOING" from "TODO"  [2026-05-20 Tue 14:30:58]
+- State "DONE"  from "DOING" [2026-05-20 Tue 14:31:05]
+:END:
+
+** Tool: fs.write script.fountain
+:PROPERTIES:
+:TOOL:     fs.write
+:STEP:     6
+:ARTIFACT: file:./script.fountain
+:END:
+
+#+begin_src fs-write :path "script.fountain"
+Title: Mini Coffee
+Credit: Written by
+Author: Gamut Agent
+Source: Sanity Test
+Draft date: 2023-10-27
+Format: 16:9
+BPM: 72
+
+.SCENE 1 - MORNING LIGHT - INT
+
+A generic ceramic pour-over coffee carafe sits on a wooden table. Soft morning light filters through a window.
+
+A hand enters, holding a kettle, and slowly pours hot water over the coffee grounds.
+
+NARRATOR (V.O.)
+Pour better.
+#+end_src
+
+** Tool: screenplay.parse
+:PROPERTIES:
+:TOOL:     screenplay.parse
+:STEP:     7
+:ARG_PATH: script.fountain
+:ARG_OUT:  screenplay.json
+:ARTIFACT: file:./screenplay.json
+:END:
+
+#+begin_src shell
+gamut screenplay parse --path script.fountain --out screenplay.json
+#+end_src
+
+#+RESULTS:
+: exit=0
+
+** DONE Validator: screenplay_parse_clean
+:PROPERTIES:
+:KIND: screenplay_parse_clean
+:END:
+
+* DONE [#A] Stage 3 — velocity                       :stage:gamut-director:
+CLOSED: [2026-05-20 Tue 14:31:11]
+:PROPERTIES:
+:ID:              stage-velocity
+:ASSIGNED_AGENT:  gamut-director
+:STAGE_ORDER:     3
+:DEPENDS_ON:      [[id:stage-script]]
+:TOOLS_AVAILABLE: velocity.propose velocity.validate
+:ARTIFACTS_IN:    screenplay.json
+:ARTIFACTS_OUT:   velocity.json
+:DESCRIPTION:     Propose BPM curve from screenplay; validate against
+                  detected BPM once music exists.
+:END:
+:LOGBOOK:
+- State "DONE" from "DOING" [2026-05-20 Tue 14:31:11]
+:END:
+
+** Tool: velocity.propose
+:PROPERTIES:
+:TOOL:           velocity.propose
+:STEP:           9
+:ARG_SCREENPLAY: script.fountain
+:ARG_OUT:        velocity.json
+:ARTIFACT:       file:./velocity.json
+:END:
+
+#+begin_src shell
+gamut velocity propose --screenplay script.fountain --out velocity.json
+#+end_src
+
+#+RESULTS:
+: exit=0
+
+* DONE [#A] Stage 4 — storyboard                     :stage:gamut-director:
+CLOSED: [2026-05-20 Tue 14:31:24]
+:PROPERTIES:
+:ID:              stage-storyboard
+:ASSIGNED_AGENT:  gamut-director
+:STAGE_ORDER:     4
+:DEPENDS_ON:      [[id:stage-script]] [[id:stage-velocity]]
+:TOOLS_AVAILABLE: storyboard.plan storyboard.verify continuity.check
+                  transitions.classify director.synthesize
+:ARTIFACTS_IN:    screenplay.json velocity.json
+:ARTIFACTS_OUT:   storyboard.json transitions.json
+:END:
+
+** Tool: storyboard.plan
+:PROPERTIES:
+:TOOL:                storyboard.plan
+:STEP:                11
+:ARG_VELOCITY:        velocity.json
+:ARG_MATCH_RUNTIME:   5
+:ARG_OUT:             storyboard.json
+:ARG_SCREENPLAY:      script.fountain
+:ARTIFACT:            file:./storyboard.json
+:END:
+
+** DONE Validator: storyboard_verify_passes
+:PROPERTIES:
+:KIND: storyboard_verify_passes
+:STEP: 13
+:END:
+
+#+RESULTS:
+: exit=0
+: 33 bytes stdout
+
+** DONE Validator: continuity_check_zero_errors
+:PROPERTIES:
+:KIND: continuity_check_zero_errors
+:STEP: 14
+:END:
+
+#+RESULTS:
+: exit=0
+: 38 bytes stdout
+
+* DOING [#A] Stage 5 — asset                         :stage:gamut-director:
+:PROPERTIES:
+:ID:              stage-asset
+:ASSIGNED_AGENT:  gamut-director
+:STAGE_ORDER:     5
+:DEPENDS_ON:      [[id:stage-storyboard]] [[id:stage-velocity]]
+:TOOLS_AVAILABLE: music.gen image.scene-still shot.img2vid shot.txt2vid
+                  shot.refine-face shot.upscale dialogue.tts captions.align
+:ARTIFACTS_IN:    storyboard.json velocity.json
+:ARTIFACTS_OUT:   music/track.wav shots/
+:COST_CAP_USD:    5.0
+:END:
+:LOGBOOK:
+- State "DOING" from "TODO" [2026-05-20 Tue 14:31:24]
+- Note "step cap reached (24) before completion"  [2026-05-20 Tue 14:31:45]
+:END:
+
+** FAILED Tool: dialogue.tts (live)                          :retry-needed:
+CLOSED: [2026-05-20 Tue 14:31:35]
+:PROPERTIES:
+:TOOL:        gamut.dialogue.tts
+:STEP:        17
+:ARG_TEXT:    "Pour better."
+:ARG_OUT:     vo/NARRATOR-3.mp3
+:ARG_BACKEND: elevenlabs
+:RETRY_POLICY: max=1 fallback=dry_run
+:END:
+
+#+begin_src shell
+gamut dialogue tts --text "Pour better." --out vo/NARRATOR-3.mp3 --max-cost 0.05
+#+end_src
+
+#+RESULTS:
+: exit=2
+: stderr=backend elevenlabs: missing credential env var: ELEVENLABS_API_KEY
+
+** FAILED Tool: dialogue.tts (synthetic fallback)
+:PROPERTIES:
+:TOOL:        gamut.dialogue.tts
+:STEP:        18
+:ARG_BACKEND: synthetic
+:END:
+
+#+RESULTS:
+: exit=3
+: stderr=unknown --backend 'synthetic', want elevenlabs|fal-kokoro
+
+** DONE Tool: captions.align (synthetic)
+:PROPERTIES:
+:TOOL:           captions.align
+:STEP:           21
+:ARG_AUDIO:      vo/NARRATOR-3.mp3
+:ARG_TEXT:       "Pour better."
+:ARG_BACKEND:    synthetic
+:ARG_DURATION_MS: 1000
+:ARTIFACT:       file:./vo/NARRATOR-3.json
+:END:
+
+#+RESULTS:
+: exit=0
+
+** TODO Tool: music.gen
+:PROPERTIES:
+:TOOL:        gamut.music.gen
+:STEP:        23
+:ARG_PROMPT:  "ambient piano, single phrase"
+:ARG_DURATION: 5
+:DRY_RUN:     t
+:END:
+
+#+begin_src shell
+gamut music gen --prompt "ambient piano, single phrase" --duration 5 --out music.mp3 --dry-run
+#+end_src
+
+#+RESULTS:
+: exit=0
+: 373 bytes stdout
+
+** TODO Validator: artifact_exists music/track.wav
+:PROPERTIES:
+:KIND:     artifact_exists
+:ARG_PATH: music/track.wav
+:END:
+
+** TODO Validator: cost_below_usd
+:PROPERTIES:
+:KIND:    cost_below_usd
+:ARG_MAX: 5.0
+:END:
+
+** TODO Validator: vlm_verify_passes_per_shot
+:PROPERTIES:
+:KIND: vlm_verify_passes_per_shot
+:END:
+
+* TODO [#A] Stage 6 — edit                           :stage:gamut-director:
+:PROPERTIES:
+:ID:              stage-edit
+:DEPENDS_ON:      [[id:stage-asset]]
+:STAGE_ORDER:     6
+:TOOLS_AVAILABLE: query captions.align dialogue.tts
+:ARTIFACTS_OUT:   cuts.edl
+:END:
+
+* TODO [#A] Stage 7 — compose                        :stage:gamut-director:
+:PROPERTIES:
+:ID:              stage-compose
+:DEPENDS_ON:      [[id:stage-edit]]
+:STAGE_ORDER:     7
+:TOOLS_AVAILABLE: verify query
+:ARTIFACTS_IN:    cuts.edl captions.json
+:ARTIFACTS_OUT:   comp.json
+:END:
+
+* TODO [#A] Stage 8 — publish                        :stage:gamut-director:
+:PROPERTIES:
+:ID:              stage-publish
+:DEPENDS_ON:      [[id:stage-compose]]
+:STAGE_ORDER:     8
+:TOOLS_AVAILABLE: render c2pa.sign c2pa.verify
+:ARTIFACTS_IN:    comp.json
+:ARTIFACTS_OUT:   commercial.mp4
+:END:
+
+** TODO Validator: c2pa_verify_passes
+:PROPERTIES:
+:KIND:     c2pa_verify_passes
+:ARG_PATH: commercial.mp4
+:END:
+
+* Run log
+Chronological thinking trace from the agent. Each step links to the
+tool-call headline it produced. This section is /derived/ on close —
+the runtime appends entries here whenever a tool fires.
+
+- step 0  planning  $0.0000  →  =fs.exists packages/workbooks/skills/gamut-director/SKILL.md=
+- step 1  planning  $0.0004  →  =fs.list .=
+- step 2  planning  $0.0009  →  =fs.read brief.md=
+- step 3  planning  $0.0013  →  =fs.exists ../vendor/...= (rejected — path traversal)
+- step 4  planning  $0.0018  →  [[id:stage-research]] fs.write brief.md
+- step 5  planning  $0.0024  →  brief.check
+- step 6  planning  $0.0030  →  [[id:stage-script]] fs.write script.fountain
+- step 7  planning  $0.0036  →  screenplay.parse
+- step 9  planning  $0.0049  →  [[id:stage-velocity]] velocity.propose
+- step 11 planning  $0.0062  →  [[id:stage-storyboard]] storyboard.plan
+- step 13 planning  $0.0076  →  storyboard.verify
+- step 14 planning  $0.0084  →  continuity.check
+- step 15 planning  $0.0092  →  [[id:stage-asset]] dialogue.tts dry-run
+- step 17 planning  $0.0108  →  dialogue.tts live (FAILED: missing key)
+- step 18 planning  $0.0117  →  dialogue.tts synthetic (FAILED: unknown backend)
+- step 20 planning  $0.0135  →  captions.align (FAILED: missing duration)
+- step 21 planning  $0.0145  →  captions.align (retry, succeeded)
+- step 23 planning  $0.0165  →  music.gen dry-run
+- [note] step cap reached (24)
+- [done] final_text=no cost=$0.0175 wall=59594ms files=3
+
+* Spec validation notes                                          :review:
+What worked, what didn't, what worg needs to revise.
+
+** What mapped cleanly
+- Stages → level-1 headlines with #+TODO: state machine. ✓
+- Inter-stage ordering → :DEPENDS_ON: with [[id:]] links. ✓
+- Success criteria → child headlines tagged with :KIND: property. ✓
+- Tool invocations → either child headline OR source block.
+  /Headline-per-invocation reads better/ — gives you state tracking,
+  retry semantics, and a place for :LOGBOOK: per call.
+- Artifacts produced → :ARTIFACT: property. ✓
+- Cost tracking → :COST_USD: property per call, summed in run metadata. ✓
+- State transitions → :LOGBOOK: drawer. ✓
+- Retries on FAIL → multiple FAILED siblings before a DONE. Org's
+  default TODO transitions don't track this natively; we lean on
+  :LOGBOOK: timestamps to reconstruct order. /Acceptable./
+
+** What fit awkwardly
+1. *Source-block "languages" we invented* — =fs-write= and the gamut
+   tool names (=screenplay.parse=, =velocity.propose=, etc.) aren't
+   real Babel languages. Two options:
+   a. Treat every gamut tool as a /shell/ block that shells out to
+      =gamut <subcommand>= (what the runtime already does internally).
+      Cleaner — uses only canonical org.
+   b. Define a worg-specific dispatcher: =#+BEGIN_SRC gamut :tool
+      screenplay.parse=. Less canonical but more explicit about which
+      tool is being called vs which CLI fronts it.
+   /Recommend (a)./ Keeps the parser pure-org. The :TOOL: property
+   on the parent headline already disambiguates for the scheduler.
+
+2. *Tool arguments as :ARG_*: properties is verbose.* The transcript
+   has =args={"path":"brief.md","content":"..."}= — we ended up
+   flattening to =:ARG_PATH:= + =:ARG_CONTENT:=. For tools with
+   nested object args this gets ugly. Option: stash full JSON in a
+   single =:TOOL_ARGS:= property as a fenced string, OR use a
+   =#+begin_src json= block inside the headline body.
+   /Recommend the JSON source-block approach for any args > 3 keys./
+
+3. *"Validator" vs "Tool" distinction has no native org marker.* Both
+   are sub-headlines. Today we tag with :KIND: on validators and
+   :TOOL: on tools, but a scheduler reading the file needs to branch
+   on which property exists. Could use org /tags/ instead:
+   =* DONE Brief check :validator:= vs =* DONE fs.write :tool:=.
+   /Recommend tag-based discrimination — it's already canonical
+   org and queryable by =worg query --tag=validator=./
+
+4. *The "Run log" section is derived data living next to source data.*
+   Org doesn't distinguish — both are just outline. The runtime would
+   need to know "this section is mine, regenerate it on every write."
+   Convention: a top-level headline with =:ARCHIVE:= tag, or a
+   property like =:DERIVED: t=. /Recommend =:DERIVED: t= property
+   per derived section./
+
+5. *No native way to express "this stage has a budget cap that
+   applies to the SUM of child tool calls."* :BUDGET_USD: on the
+   parent works for the property model, but enforcement needs the
+   scheduler to walk descendants and sum :COST_USD:. /Fine — that's
+   not a syntax issue, it's a query/runtime issue. worg-query
+   handles it./
+
+6. *Failed-tool retries clutter the outline.* We have three FAILED
+   headlines + one DONE for dialogue.tts. Reads chronologically but
+   visually noisy. Alternative: collapse retries into the LOGBOOK of
+   a single headline, with each attempt's args + result as a list
+   entry. /Recommend the single-headline+LOGBOOK approach for
+   retries — keeps the outline scannable./
+
+** Open question for the spec
+- Do we want a :TRUST_LEVEL: property on source blocks for the
+  executor dispatch (sandboxed/full)? The mini-coffee case is
+  full-trust (gamut CLI), but Studio's per-org agent surface will
+  need the distinction. Document but don't lock in syntax yet —
+  let it emerge from the second use case.
+
+** Verdict
+/Spec holds./ The canonical org subset from the epic
+(headlines+TODO+properties+LOGBOOK+source-blocks+RESULTS+links+tags)
+is sufficient. The awkward bits (#2, #3, #4, #6 above) are
+*convention choices*, not *syntax limitations*. Land them in WORG.md
+as recommendations, not as parser extensions.
+
+Proceed with wb-4vhr.2 (write WORG.md) using these conventions, then
+wb-4vhr.3 (fork orgize). No spec revisions needed.

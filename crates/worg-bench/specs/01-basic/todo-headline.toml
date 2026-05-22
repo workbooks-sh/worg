@@ -1,0 +1,26 @@
+id = "todo-headline"
+category = "01-basic"
+prompt = """
+Write a single org-mode headline at level 1 with TODO state and the title \"Build login flow\". Output ONLY the org-mode text, no fences, no commentary, no leading/trailing whitespace beyond a single trailing newline.
+"""
+
+[[validate]]
+kind = "parses"
+
+[[validate]]
+kind = "headline_count"
+count = 1
+
+[[validate]]
+kind = "state_match"
+headline_index = 0
+state = "TODO"
+
+[[validate]]
+kind = "level_match"
+headline_index = 0
+level = 1
+
+[[validate]]
+kind = "regex"
+pattern = "^\\* TODO Build login flow"

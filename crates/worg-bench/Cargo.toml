@@ -1,0 +1,33 @@
+[package]
+name = "worg-bench"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+description = "Pretraining-quality benchmark for org-mode authorship across LLMs. Given a prompt, run a model, validate the org-mode output against worg-parse + structural assertions, score."
+
+[[bin]]
+name = "worg-bench"
+path = "src/main.rs"
+
+[dependencies]
+worg-parse = { path = "../worg-parse" }
+orgize = { workspace = true }
+
+# CLI / config
+clap = { version = "4", features = ["derive"] }
+toml = "0.8"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+# Async + HTTP for OpenRouter
+tokio = { version = "1", features = ["macros", "rt-multi-thread", "time"] }
+reqwest = { version = "0.12", features = ["json", "rustls-tls"], default-features = false }
+
+# Utilities
+anyhow = "1"
+thiserror = "1"
+regex = "1"
+walkdir = "2"
+colored = "2"

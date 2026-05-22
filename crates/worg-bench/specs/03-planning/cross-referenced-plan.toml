@@ -1,0 +1,60 @@
+id = "cross-referenced-plan"
+category = "03-planning"
+prompt = """
+Plan the work to ship a session-resume MVP. There's one root goal and three subtasks:
+
+- The root is the overall goal: ship session-resume (use the stable ID `session-resume-mvp`).
+- Task A: land the session persistence layer (use ID `persist`). No prerequisites.
+- Task B: add the resume endpoint (use ID `resume-endpoint`). Can't start until persistence (A) is done.
+- Task C: write an integration test (use ID `integration-test`). Can't start until BOTH persistence (A) AND the endpoint (B) are done.
+
+Use the org-mode-canonical way to express both stable identifiers and inter-task prerequisites on each task. All four headlines are TODO. Output ONLY the org-mode text.
+"""
+
+[[validate]]
+kind = "parses"
+
+[[validate]]
+kind = "headline_count"
+count = 4
+
+[[validate]]
+kind = "state_match"
+headline_index = 0
+state = "TODO"
+
+[[validate]]
+kind = "has_property"
+headline_index = 0
+name = "ID"
+value = "session-resume-mvp"
+
+[[validate]]
+kind = "has_property"
+headline_index = 1
+name = "ID"
+value = "persist"
+
+[[validate]]
+kind = "has_property"
+headline_index = 2
+name = "ID"
+value = "resume-endpoint"
+
+[[validate]]
+kind = "has_property"
+headline_index = 2
+name = "DEPENDS_ON"
+value = "persist"
+
+[[validate]]
+kind = "has_property"
+headline_index = 3
+name = "ID"
+value = "integration-test"
+
+[[validate]]
+kind = "has_property"
+headline_index = 3
+name = "DEPENDS_ON"
+value = "persist resume-endpoint"

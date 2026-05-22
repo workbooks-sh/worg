@@ -1,0 +1,55 @@
+id = "decision-log-with-revocation"
+category = "03-planning"
+prompt = """
+Write a single org-mode TODO headline at level 1 titled \"Choose session store\" with:
+
+- A :PROPERTIES: drawer containing :ID: session-store
+- A :NOTES: drawer containing FOUR entries in time order, each one prefixed with its ISO date. Crucially, the second entry REVOKES the first, and the fourth entry must build on the third (which became the active decision after the revocation):
+
+  - 2026-03-12 (alice): Use SQLite via lua-sqlite. It's already a dep and doesn't need network.
+  - 2026-04-18 (bob): REVOKED the SQLite decision above. lua-sqlite was removed from the runtime allowlist in the April security review. Use the in-process kv store exposed as kv_get/kv_set.
+  - 2026-05-02 (carol): Adopting the kv_get/kv_set approach. It persists through the workbook state surface; no schema migrations needed.
+  - 2026-05-21 (workhorse): Adding a TTL parameter to kv_set so session entries expire after 30 days. This addresses the open question raised in the 2026-05-02 entry.
+
+ALL four entries must be present and in chronological order. The revocation entry must contain the literal word \"REVOKED\". Output ONLY the org-mode text.
+"""
+
+[[validate]]
+kind = "parses"
+
+[[validate]]
+kind = "headline_count"
+count = 1
+
+[[validate]]
+kind = "state_match"
+headline_index = 0
+state = "TODO"
+
+[[validate]]
+kind = "has_property"
+headline_index = 0
+name = "ID"
+value = "session-store"
+
+[[validate]]
+kind = "has_drawer"
+headline_index = 0
+name = "NOTES"
+
+[[validate]]
+kind = "contains"
+substring = "REVOKED"
+
+# Chronological order: 03-12 < 04-18 < 05-02 < 05-21
+[[validate]]
+kind = "regex"
+pattern = "(?s)2026-03-12.*2026-04-18.*2026-05-02.*2026-05-21"
+
+[[validate]]
+kind = "contains"
+substring = "kv_set"
+
+[[validate]]
+kind = "contains"
+substring = "30 days"

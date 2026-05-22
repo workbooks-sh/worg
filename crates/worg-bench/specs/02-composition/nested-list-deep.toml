@@ -1,0 +1,56 @@
+id = "nested-list-deep"
+category = "02-composition"
+prompt = """
+Write a single org-mode level-1 headline titled \"Migration steps\" followed by a 3-level-deep nested list with explicit bullet types per level:
+
+- Top-level items use `-` (hyphen)
+  + Second-level items use `+` (plus)
+    * Third-level items use `*` (asterisk)
+
+You must produce a list with EXACTLY this structure (terms can vary, structure cannot):
+
+- Phase 1
+  + Step 1a
+    * Detail
+    * Detail
+  + Step 1b
+- Phase 2
+  + Step 2a
+    * Detail
+
+Indentation is significant in org-mode lists: each level must indent more than its parent. Output ONLY the org-mode text.
+"""
+
+[[validate]]
+kind = "parses"
+
+[[validate]]
+kind = "headline_count"
+count = 1
+
+# Top-level items (`- ` at start of line)
+[[validate]]
+kind = "regex"
+pattern = "(?m)^-\\s+Phase 1"
+
+[[validate]]
+kind = "regex"
+pattern = "(?m)^-\\s+Phase 2"
+
+# Second-level items (`  + ` with indentation)
+[[validate]]
+kind = "regex"
+pattern = "(?m)^\\s{2,}\\+\\s+Step 1a"
+
+[[validate]]
+kind = "regex"
+pattern = "(?m)^\\s{2,}\\+\\s+Step 1b"
+
+[[validate]]
+kind = "regex"
+pattern = "(?m)^\\s{2,}\\+\\s+Step 2a"
+
+# Third-level items (`    * ` with more indentation, asterisk-bullet — must NOT be confused with headlines)
+[[validate]]
+kind = "regex"
+pattern = "(?m)^\\s{4,}\\*\\s+Detail"

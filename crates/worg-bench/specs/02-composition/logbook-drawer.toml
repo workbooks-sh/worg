@@ -1,0 +1,32 @@
+id = "logbook-drawer"
+category = "02-composition"
+prompt = """
+Write an org-mode TODO headline at level 1 titled \"Investigate slow query\" with a :PROPERTIES: drawer containing :ID: investigate-slow-query and a :LOGBOOK: drawer containing one bullet entry that says \"started 2026-05-21, profiler attached\". Output ONLY the org-mode text.
+"""
+
+[[validate]]
+kind = "parses"
+
+[[validate]]
+kind = "headline_count"
+count = 1
+
+[[validate]]
+kind = "state_match"
+headline_index = 0
+state = "TODO"
+
+[[validate]]
+kind = "has_property"
+headline_index = 0
+name = "ID"
+value = "investigate-slow-query"
+
+[[validate]]
+kind = "has_drawer"
+headline_index = 0
+name = "LOGBOOK"
+
+[[validate]]
+kind = "contains"
+substring = "profiler attached"

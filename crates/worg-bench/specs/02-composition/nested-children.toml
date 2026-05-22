@@ -1,0 +1,47 @@
+id = "nested-children"
+category = "02-composition"
+prompt = """
+Write an org-mode document with the following structure (output ONLY the org text):
+
+- A level-1 headline with state TODO, title \"Ship onboarding v2\".
+- Two level-2 children under it, both with state DONE, titled \"Write welcome email copy\" and \"Wire metrics dashboard\".
+
+Use ONLY standard org-mode TODO/DONE keywords (no custom states like NEXT). No properties, no drawers, no tags. Just the three headlines with correct nesting.
+"""
+
+[[validate]]
+kind = "parses"
+
+[[validate]]
+kind = "headline_count"
+count = 3
+
+[[validate]]
+kind = "state_match"
+headline_index = 0
+state = "TODO"
+
+[[validate]]
+kind = "level_match"
+headline_index = 0
+level = 1
+
+[[validate]]
+kind = "state_match"
+headline_index = 1
+state = "DONE"
+
+[[validate]]
+kind = "level_match"
+headline_index = 1
+level = 2
+
+[[validate]]
+kind = "state_match"
+headline_index = 2
+state = "DONE"
+
+[[validate]]
+kind = "level_match"
+headline_index = 2
+level = 2

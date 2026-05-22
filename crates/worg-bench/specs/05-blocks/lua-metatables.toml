@@ -1,0 +1,65 @@
+id = "lua-metatables"
+category = "05-blocks"
+prompt = """
+Document a small Lua counter object in an org-mode file. Headline (level 1): \"Counter with metatable\". Embed the actual Lua implementation as an org-mode source block.
+
+The object should:
+
+- Be created with a starting value via `Counter:new(start)` OR by calling the class directly: `Counter(5)` (both forms must work — the call form is sugar for `:new`).
+- Have an `:inc()` method that bumps the value by 1.
+- Convert to a readable string via `tostring(instance)` — the output should look like `Counter(value=N)`.
+
+At the end of the block, exercise the API: construct a counter starting at 0 via the call-form shortcut, increment it twice, print it. The output should be `Counter(value=2)`.
+
+Use idiomatic Lua object patterns. Output ONLY the org-mode text.
+"""
+
+[[validate]]
+kind = "parses"
+
+[[validate]]
+kind = "headline_count"
+count = 1
+
+[[validate]]
+kind = "regex"
+pattern = "(?i)#\\+BEGIN_SRC\\s+lua"
+
+[[validate]]
+kind = "regex"
+pattern = "(?i)#\\+END_SRC"
+
+# setmetatable used somewhere
+[[validate]]
+kind = "regex"
+pattern = "setmetatable"
+
+# __index metamethod
+[[validate]]
+kind = "regex"
+pattern = "__index"
+
+# __call metamethod (the harder one — most models forget this)
+[[validate]]
+kind = "regex"
+pattern = "__call"
+
+# __tostring metamethod
+[[validate]]
+kind = "regex"
+pattern = "__tostring"
+
+# Counter.new or Counter:new constructor
+[[validate]]
+kind = "regex"
+pattern = "function\\s+Counter[:.]new"
+
+# :inc method (note: org-mode escapes the colon)
+[[validate]]
+kind = "regex"
+pattern = "function\\s+Counter[:.]inc"
+
+# Exercise: Counter(0) syntax (testing __call)
+[[validate]]
+kind = "regex"
+pattern = "Counter\\(\\s*0\\s*\\)"

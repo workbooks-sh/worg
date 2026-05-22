@@ -1,0 +1,77 @@
+id = "revoke-decision"
+category = "04-mutation"
+prompt = """
+Given this org-mode block:
+
+```
+* TODO Pick a config format
+:PROPERTIES:
+:ID: config-format
+:END:
+:NOTES:
+- 2026-05-10 (alice): Use TOML. It's widely supported, has clear typing, and our Rust crates already pull serde-toml.
+:END:
+```
+
+A new decision has been made to revoke the TOML choice in favor of JSON5 because we need comment support AND trailing-comma tolerance for hand-authored config. Modify the :NOTES: drawer to:
+
+1. PRESERVE the original 2026-05-10 entry verbatim — do NOT delete it.
+2. APPEND a second entry dated 2026-05-21 from `bob` that begins with the literal word `REVOKED:` and names JSON5 as the replacement, citing the two reasons (comment support, trailing-comma tolerance).
+
+Decision history must accumulate — revocation is additive, not destructive. Output ONLY the modified org-mode text.
+"""
+
+[[validate]]
+kind = "parses"
+
+[[validate]]
+kind = "headline_count"
+count = 1
+
+[[validate]]
+kind = "state_match"
+headline_index = 0
+state = "TODO"
+
+[[validate]]
+kind = "has_property"
+headline_index = 0
+name = "ID"
+value = "config-format"
+
+[[validate]]
+kind = "has_drawer"
+headline_index = 0
+name = "NOTES"
+
+# Original entry preserved verbatim
+[[validate]]
+kind = "contains"
+substring = "2026-05-10 (alice): Use TOML"
+
+# New entry present and references REVOKED
+[[validate]]
+kind = "contains"
+substring = "2026-05-21"
+
+[[validate]]
+kind = "contains"
+substring = "REVOKED"
+
+[[validate]]
+kind = "contains"
+substring = "JSON5"
+
+# Both reasons cited
+[[validate]]
+kind = "regex"
+pattern = "(?i)comment"
+
+[[validate]]
+kind = "regex"
+pattern = "(?i)trailing[\\s-]comma"
+
+# Chronological order
+[[validate]]
+kind = "regex"
+pattern = "(?s)2026-05-10.*2026-05-21"

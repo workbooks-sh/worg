@@ -1,0 +1,44 @@
+id = "priority-cookies-and-tags"
+category = "01-basic"
+prompt = """
+Write a single org-mode level-1 headline that combines ALL of these in the correct canonical order:
+
+- State: TODO
+- Priority cookie: [#A]
+- Title: \"Patch auth bypass\"
+- Tags: :security:hotfix:p0:
+
+The org-mode canonical order for a headline is:
+  STARS STATE PRIORITY TITLE :TAG1:TAG2:
+
+i.e. `* TODO [#A] Patch auth bypass :security:hotfix:p0:` (with the tags right-aligned by convention but not required to be padded).
+
+Output ONLY the org-mode text. No properties, no body, no other lines.
+"""
+
+[[validate]]
+kind = "parses"
+
+[[validate]]
+kind = "headline_count"
+count = 1
+
+[[validate]]
+kind = "state_match"
+headline_index = 0
+state = "TODO"
+
+[[validate]]
+kind = "priority_match"
+headline_index = 0
+priority = "A"
+
+[[validate]]
+kind = "tags_contain"
+headline_index = 0
+tags = ["security", "hotfix", "p0"]
+
+# Strict canonical order check: state then priority then title then tags.
+[[validate]]
+kind = "regex"
+pattern = "^\\*\\s+TODO\\s+\\[#A\\]\\s+Patch auth bypass\\s+:security:hotfix:p0:"

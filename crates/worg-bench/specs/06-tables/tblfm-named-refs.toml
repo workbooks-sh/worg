@@ -1,0 +1,50 @@
+id = "tblfm-named-refs"
+category = "06-tables"
+prompt = """
+Build a quarterly margin tracker in org-mode. Headline: \"Quarterly margin\" (level 1). The table has four quarters with revenue and cost columns; have org-mode COMPUTE the margin and margin-% columns rather than hand-filling them.
+
+Table data (revenue, cost in dollars):
+
+- Q1: revenue 100000, cost 72000
+- Q2: revenue 140000, cost 95000
+- Q3: revenue 120000, cost 88000
+- Q4: revenue 180000, cost 110000
+
+Two computed columns:
+
+- Margin = Revenue − Cost
+- Margin % = 100 × Margin / Revenue, formatted to one decimal place
+
+Use the org-mode table-formula mechanism so a user re-running the table recalculation gets the right values. Output ONLY the org-mode text.
+"""
+
+[[validate]]
+kind = "parses"
+
+[[validate]]
+kind = "headline_count"
+count = 1
+
+[[validate]]
+kind = "regex"
+pattern = "(?im)^\\s*#\\+TBLFM:"
+
+# First formula: $4=$2-$3
+[[validate]]
+kind = "regex"
+pattern = "\\$4\\s*=\\s*\\$2\\s*-\\s*\\$3"
+
+# Second formula: $5=100*$4/$2 with format specifier ;f1 for one decimal
+[[validate]]
+kind = "regex"
+pattern = "\\$5\\s*=\\s*100\\s*\\*\\s*\\$4\\s*/\\s*\\$2"
+
+# The ;f1 format specifier
+[[validate]]
+kind = "regex"
+pattern = ";f1"
+
+# Both formulas on the same #+TBLFM: line, separated by ::
+[[validate]]
+kind = "regex"
+pattern = "(?im)^\\s*#\\+TBLFM:[^\\n]*\\$4\\s*=\\s*\\$2\\s*-\\s*\\$3[^\\n]*::[^\\n]*\\$5"

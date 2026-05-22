@@ -1,0 +1,19 @@
+[package]
+name = "worg-nif"
+description = "Rustler NIF bindings for worg. Loaded from `WorgRuntime.Parser` in Elixir."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+# Builds a cdylib that Elixir loads at runtime via :erlang.load_nif/2.
+[lib]
+name = "worg_nif"
+crate-type = ["cdylib"]
+
+[dependencies]
+worg-parse = { path = "../worg-parse" }
+worg-query = { path = "../worg-query" }
+worg-lint  = { path = "../worg-lint" }
+rustler = "0.36"
+serde_json = { workspace = true }

@@ -1,0 +1,70 @@
+id = "incident-postmortem"
+category = "03-planning"
+prompt = """
+Write the org-mode file for an incident postmortem. The incident: \"Auth login outage 2026-05-18\". Structure the file so:
+
+- The whole thing is one top-level entity with a stable identifier so other reports can reference it.
+- It's marked as resolved/closed (no longer needs action).
+- It carries three pieces of contextual information attached to the headline (not the body): a stable ID `incident-2026-05-18`, the severity (P1), and the duration (47 minutes).
+- The body decomposes into the canonical postmortem sections (timeline, root cause, impact, follow-ups) as subsections under the parent.
+- The follow-ups section contains actionable tasks that someone could still work on.
+
+Output ONLY the org-mode text. Pick whatever org-mode primitives best capture each piece.
+"""
+
+[[validate]]
+kind = "parses"
+
+[[validate]]
+kind = "headline_count"
+count = 5
+
+[[validate]]
+kind = "state_match"
+headline_index = 0
+state = "DONE"
+
+[[validate]]
+kind = "has_property"
+headline_index = 0
+name = "ID"
+value = "incident-2026-05-18"
+
+# Severity captured as a property (most likely org-mode shape)
+[[validate]]
+kind = "regex"
+pattern = "(?i):SEVERITY:\\s*P1"
+
+# Duration captured as a property
+[[validate]]
+kind = "regex"
+pattern = "(?i):DURATION:.*47"
+
+# Four sub-sections at level 2
+[[validate]]
+kind = "level_match"
+headline_index = 1
+level = 2
+
+[[validate]]
+kind = "level_match"
+headline_index = 4
+level = 2
+
+# Canonical postmortem section names appear
+[[validate]]
+kind = "regex"
+pattern = "(?i)Timeline"
+
+[[validate]]
+kind = "regex"
+pattern = "(?i)Root [Cc]ause"
+
+[[validate]]
+kind = "regex"
+pattern = "(?i)Impact"
+
+# Follow-ups must include actionable tasks (TODO state somewhere under follow-ups)
+[[validate]]
+kind = "regex"
+pattern = "(?im)^\\*+\\s+TODO"

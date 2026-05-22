@@ -1,0 +1,60 @@
+id = "lua-coroutine-producer"
+category = "05-blocks"
+prompt = """
+Document a small streaming primitive in Lua, in an org-mode file. Headline: \"Streaming line reader\" (level 1). Embed the actual Lua implementation as a source block.
+
+What it should do:
+
+- Expose a function `lines_from(path)` that returns a stateful producer: each time the consumer asks for the next value, it yields the next line of the file (without the trailing newline). When the file is exhausted, the producer ends cleanly.
+- The producer must be lazy — it should NOT slurp the whole file into memory up front. Files larger than RAM should still work.
+- Use Lua's built-in concurrency primitive for this kind of pull-based stream rather than a closure-with-state.
+
+After the function, exercise it: pass `/etc/hostname`, pull the first line, print it.
+
+Output ONLY the org-mode text.
+"""
+
+[[validate]]
+kind = "parses"
+
+[[validate]]
+kind = "headline_count"
+count = 1
+
+[[validate]]
+kind = "regex"
+pattern = "(?i)#\\+BEGIN_SRC\\s+lua"
+
+[[validate]]
+kind = "regex"
+pattern = "(?i)#\\+END_SRC"
+
+# Function definition
+[[validate]]
+kind = "regex"
+pattern = "function\\s+lines_from"
+
+# Lua coroutine primitives — coroutine.create or coroutine.wrap
+[[validate]]
+kind = "regex"
+pattern = "coroutine\\.(wrap|create)"
+
+# coroutine.yield called somewhere (the producer pattern requires it)
+[[validate]]
+kind = "regex"
+pattern = "coroutine\\.yield"
+
+# Lazy file iteration: io.lines OR io.open + read("*l")/(":l") loop — not :read("*a")
+[[validate]]
+kind = "regex"
+pattern = "(io\\.lines|read\\([\"']\\*?l[\"']\\))"
+
+# Must NOT slurp whole file with read("*a") / read("a")
+[[validate]]
+kind = "regex"
+pattern = "^(?:(?!read\\([\"']\\*?a[\"']\\)).)*$"
+
+# Exercise: call it with /etc/hostname
+[[validate]]
+kind = "contains"
+substring = "/etc/hostname"
