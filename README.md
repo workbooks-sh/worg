@@ -1,69 +1,87 @@
+<p align="center">
+  <img src=".github/banner.png" alt="worg" width="540">
+</p>
+
 # worg
 
-**Canonical org-mode for multi-agent orchestration.** Workbooks
-ships planning code as `.org` files that open in Emacs *and* drive a
-supervised Elixir runtime. Spec: [`WORG.md`](./WORG.md).
+**Canonical org-mode for multi-agent orchestration.**
 
-This directory is a `git subtree`, mirrored to
-[github.com/workbooks-sh/worg](https://github.com/workbooks-sh/worg).
-Author changes here in the workbooks monorepo and commit normally.
-Periodic `git subtree push --prefix=packages/worg worg main` releases
-upstream.
+worg parses, queries, and executes plain `.org` files as the source of
+truth for agents, plans, task graphs, skills, and validators. The files
+open in Emacs and drive a supervised runtime. No new DSL, no proprietary
+schema — the agent's plan *is* an org document, and the document is the
+program.
+
+## Why org-mode
+
+Agents need a planning substrate that humans can read, diff, edit,
+and version without tooling. Most "agent frameworks" invent a YAML or
+JSON dialect for the same job and then bolt on viewers, editors, and
+linters around it. Org-mode already has all of that — plus tags,
+properties, agenda queries, source blocks, and 20 years of editor
+support. worg standardizes a small set of conventions on top so the
+same file works in Emacs, in a CLI, and as input to a supervised
+runtime.
+
+## What worg gives you
+
+- **Parser + AST + serializer** — round-trip-safe org reader (Rust,
+  `syn`-style API). Survives edits without reformatting.
+- **Agenda-style queries** — pull tasks by tag, property, deadline,
+  state across a tree of files.
+- **DAG executor** — walks a plan, resolves dependencies, dispatches
+  work, records run state back into the file.
+- **Glossary system** — `#+GLOSSARY:` lets consumers extend the
+  vocabulary (runtime targets, dispatch hints, environment shape)
+  without forking worg.
+- **Bindings** — native Rust crate, Node + browser WASM, and a
+  Rustler NIF for Elixir hosts.
+
+## Design
+
+**worg is a library, not a runtime.** There is no daemon, no GenServer
+per document, nothing keeping state when your process exits. The host
+links worg, calls its functions, and writes the file. When the host
+stops, nothing stays running.
+
+This makes worg usable in three shapes from the same codebase:
+
+| Host | How worg is loaded |
+|---|---|
+| Local CLI (`worg`) | Native binary |
+| Node / browser tool | WASM bindings |
+| Elixir / BEAM service | Rustler NIF |
+
+The `.org` file is canonical. Any database the host maintains (an
+agenda index, a run log) is a derived reactive view — rebuildable from
+the file, never the source of truth.
 
 ## Layout
 
 ```
-packages/worg/
-├── WORG.md                    spec — what worg parses + standardized conventions
-├── Cargo.toml                 Rust workspace root
+worg/
+├── WORG.md                 spec — parser conventions + glossary system
 ├── crates/
-│   ├── worg-parse/            parser + AST + serializer (wb-4vhr.1, .3)
-│   ├── worg-query/            agenda-style queries (wb-4vhr.4) [planned]
-│   ├── worg-cli/              native `worg` binary (wb-4vhr.5) [planned]
-│   ├── worg-nif/              Rustler NIF for Elixir (wb-4vhr.6) [planned]
-│   └── worg-wasm/             wasm-pack targets (wb-4vhr.7, .8) [planned]
-├── elixir/
-│   └── worg/                  Elixir LIBRARY (not a runtime — no Application module)
-├── bindings/                  generated JS bindings from worg-wasm
-│   ├── node/                  wasm-pack output, target=nodejs
-│   └── browser/               wasm-pack output, target=web
-└── examples/
-    └── mini-coffee-mapped.org  hand-mapped from gamut/001-mini-coffee dryrun
-                                (the wb-4vhr.19 validation gate)
+│   ├── worg-parse/         parser + AST + serializer
+│   ├── worg-query/         agenda-style queries
+│   ├── worg-cli/           `worg` native binary
+│   ├── worg-nif/           Rustler NIF for Elixir
+│   ├── worg-wasm/          wasm-pack targets
+│   └── worg-orch/          Orchestrator Protocol types (run import / export)
+├── elixir/worg/            Elixir library wrapper around the NIF
+├── bindings/{node,browser} generated WASM bindings
+└── examples/               reference org files
 ```
 
 ## Build
 
 ```bash
-cd packages/worg
 cargo build
 cargo test
 ```
 
-The workspace builds independently of the rest of the monorepo —
-worg has no Rust dependency on gamut, rvst, or workbook-cli. It is
-*consumed* by them (workbook-cli embeds plans, gamut seeds from
-`.org` files), but it doesn't depend on them.
-
-## Architecture
-
-**Worg is a library, not a runtime.** There is no daemon, no supervised
-runtime, no GenServer per document. The agent process — whatever it is in
-whatever context — links worg as a library and calls its functions when it
-needs to. When the agent stops, nothing keeps running.
-
-Three contexts, same library:
-
-| Context | How worg is loaded | What writes the file |
-|---|---|---|
-| **Studio** (Elixir agent on Fly.io) | NIF (`Worg.Parser` → `worg-nif`) | The agent process, in one `Ecto.Multi` (file to R2 + derived rows to Postgres + PubSub broadcast) |
-| **Workbook CLI** | WASM (Node bindings → `bindings/node/`) | `workbook plan <subcommand>` writes locally via temp+rename |
-| **Standalone / OSS use** | crates.io (Rust crate dep) or WASM | `worg <subcommand>` writes locally |
-
-The `.org` file is canonical. Postgres (Studio only) is a derived reactive
-index — rebuildable from the file, never the source of truth.
-
 ## Status
 
-Work tracked under epic [wb-4vhr](../../.beads/issues.jsonl). See the
-epic description for full handoff state, completed work, and what's next.
+Parser + query + executor + glossary are stable. CLI and bindings are
+under active development — see [`WORG.md`](./WORG.md) for the current
+spec and roadmap.
