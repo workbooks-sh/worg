@@ -1,0 +1,194 @@
+#+TITLE: Studio orchestrator example — Workhorse decomposing a feature request
+#+AUTHOR: worg-examples
+#+TODO: TODO NEXT WAITING DOING | DONE CANCELED FAILED
+#+TAG_EXCLUDE_INHERIT: stage validator
+#+CATEGORY: studio-orchestrator
+#+EXTENSIONS: STAGE_MODEL TRIGGER
+
+* About this file                                                    :doc:
+:PROPERTIES:
+:ID: about
+:END:
+
+This is the canonical reference for what a Studio agent's plan looks
+like under the worg-library model. The orchestrator (Workhorse) takes
+a top-level request, decomposes it into stages assigned to specialist
+agents, and gates downstream stages on upstream completion via
+=:BLOCKER:=. Each stage has a validator + at least one source block
+that demonstrates the executor path (=Worg.Exec.shell= / =lua= /
+=elixir=).
+
+Companion to =examples/mini-coffee-mapped.org= which shows the SAME
+shape from a completed gamut pipeline run; this file shows the
+incoming-request side instead.
+
+* Agents
+
+** workhorse                                                       :agent:
+:PROPERTIES:
+:ID: workhorse
+:TYPE: ai
+:CAPABILITIES: bash read write delegate
+:MODEL: xiaomi/mimo-v2.5-pro
+:END:
+
+The orchestrator-agent. Owns the top-level conversation, decomposes
+requests into stage tasks, and delegates to specialist agents below.
+
+*** System prompt
+You are Workhorse, the everyday Workbooks agent. When a user request
+spans multiple disciplines, decompose into stages, assign each to the
+right specialist, and let the cascade run. Do not do specialist work
+yourself when a specialist exists.
+
+** brand-researcher                                                :agent:
+:PROPERTIES:
+:ID: brand-researcher
+:TYPE: ai
+:CAPABILITIES: bash brandwork
+:MODEL: xiaomi/mimo-v2.5-pro
+:END:
+
+Specialist for brand resolution + reference gathering. Runs the
+=brandwork= CLI; emits a brand brief into the plan substrate.
+
+** ugc-writer                                                      :agent:
+:PROPERTIES:
+:ID: ugc-writer
+:TYPE: ai
+:CAPABILITIES: bash write
+:MODEL: xiaomi/mimo-v2.5-pro
+:END:
+
+Specialist for UGC-style script drafts. Reads the brand brief from
+the substrate; produces a screenplay headline + body.
+
+* Plan: ship a 12-second UGC ad for a new brand                      :doc:
+
+** TODO Resolve the brand                                         :stage:
+:PROPERTIES:
+:ID: brand-research
+:ASSIGNED_AGENT: brand-researcher
+:Effort: 30m
+:END:
+
+Inputs: a brand name from the user's brief (=Champion=, =New Balance=,
+etc.). Outputs: =brand-brief.md= in the workdir with canonical
+domain, logo URL, real product taxonomy, 2-3 reference creatives.
+
+#+begin_src bash
+brandwork brand "$BRAND_NAME" --output brand-brief.md
+brandwork ads search "$BRAND_NAME" --limit 5 --output brand-ads.json
+#+end_src
+
+*** DONE clean working tree                                  :validator:
+:PROPERTIES:
+:ID: brand-research-clean
+:KIND: artifact_exists
+:ARG_PATH: brand-brief.md
+:END:
+
+#+begin_src bash
+test -f brand-brief.md
+#+end_src
+
+** TODO Draft the screenplay                                      :stage:
+:PROPERTIES:
+:ID: screenplay
+:ASSIGNED_AGENT: ugc-writer
+:BLOCKER: [[id:brand-research]]
+:Effort: 45m
+:END:
+
+Inputs: =brand-brief.md= from stage 1, plus the user's product +
+register asks. Outputs: =screenplay.fountain= with shot count + per-
+shot text overlay copy. Brand wordmark must appear in intro + CTA
+(see Hard Rules in the wavelet-director skill).
+
+#+begin_src elixir
+brief = File.read!("brand-brief.md")
+shots = Studio.Director.draft_screenplay(brief, register: :ugc, runtime_secs: 12)
+File.write!("screenplay.fountain", Studio.Director.format(shots))
+#+end_src
+
+*** DONE shot count plausible                                :validator:
+:PROPERTIES:
+:ID: screenplay-shot-count
+:KIND: screenplay_parse_clean
+:END:
+
+#+begin_src lua
+local fountain = io.read("*all")  -- piped in by worg's :results
+local count = 0
+for _ in string.gmatch(fountain, "EXT%.") do count = count + 1 end
+for _ in string.gmatch(fountain, "INT%.") do count = count + 1 end
+return count >= 4 and count <= 10
+#+end_src
+
+** TODO Render the spot                                           :stage:
+:PROPERTIES:
+:ID: render
+:ASSIGNED_AGENT: workhorse
+:BLOCKER: [[id:screenplay]]
+:STAGE_MODEL: anthropic/claude-opus-4.7
+:Effort: 60m
+:END:
+
+Stage-model override (=:STAGE_MODEL:=, wb-6t1r) — the render-direction
+stage benefits from a stronger model. The orchestrator-loop runs on
+Mimo (=:MODEL:= on the agent above); this single stage escalates to
+Opus.
+
+Inputs: =screenplay.fountain= from stage 2. Outputs: =commercial.html=
+composing scene HTML overlays + Veo shot references.
+
+#+begin_src bash
+wavelet shot txt2vid --screenplay screenplay.fountain --outdir shots/
+wavelet compose --screenplay screenplay.fountain --shots shots/ \
+                --output commercial.html
+wavelet render commercial.html --output commercial.mp4 \
+                --frame-budget-secs 30
+#+end_src
+
+*** DONE commercial.mp4 exists + plays                       :validator:
+:PROPERTIES:
+:ID: render-output-exists
+:KIND: artifact_exists
+:ARG_PATH: commercial.mp4
+:END:
+
+#+begin_src bash
+test -f commercial.mp4 && ffprobe -v error commercial.mp4 | grep -q "Stream"
+#+end_src
+
+** TODO Ship                                                      :stage:
+:PROPERTIES:
+:ID: ship
+:ASSIGNED_AGENT: workhorse
+:BLOCKER: [[id:render]] [[id:render-output-exists]]
+:TRIGGER: [[id:notify-user]]
+:Effort: 10m
+:END:
+
+Publish the rendered commercial.mp4 + return the substrate URL.
+
+#+begin_src bash
+substrate_push commercial.mp4 --message "Initial render of $BRAND_NAME UGC spot"
+#+end_src
+
+* Notifications
+
+** TODO Notify the user                                                  :
+:PROPERTIES:
+:ID: notify-user
+:ASSIGNED_AGENT: workhorse
+:END:
+
+Fired via the success-side =:TRIGGER:= from the ship stage. The
+ORDERED parent + BLOCKER chain ensures the user only sees one
+"done" ping after the full pipeline lands, not per-stage chatter.
+
+#+begin_src elixir
+substrate_url = System.get_env("WB_LAST_PUSH_URL")
+"Your $BRAND_NAME spot is ready: #{substrate_url}"
+#+end_src

@@ -1,0 +1,13 @@
+{
+  "id": "pick-issue",
+  "title": "pick issue",
+  "state": "backlog",
+  "created_by": "worg-exporter",
+  "created_at": "2026-05-23T20:00:00Z",
+  "description": "Choose the first ready issue under epic wb-6irl that:\n   - has no open dependencies\n   - doesn't need user input (R2/DNS/LLM keys, domain verification)\n   - needs <200 LOC of changes\n   - doesn't touch the auth pipeline\n\n   If nothing matches, report \"no autonomous-safe work ready; epic\n   blocked on user inputs\" and exit. The loop will tick again later.\n\n   #+begin_src shell :name pick-issue-id :results value :tangle no\n   bd list --parent wb-6irl --status open --priority 1 --json |\n     jq -r '.[] | select(.blockers == [] and .needs_user_input != true) | .id' |\n     head -1\n   #+end_src",
+  "parent": "autoloop-iteration",
+  "tags": [
+    "stage",
+    "sandboxed"
+  ]
+}

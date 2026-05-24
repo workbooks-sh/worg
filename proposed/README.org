@@ -1,0 +1,31 @@
+#+TITLE: proposed/ — WORG runtime scaffold
+
+This directory holds a scaffold for the WORG runtime redesign
+discussed in the ideation session of 2026-05-23. Nothing here is
+canonical yet.
+
+* Files
+  - =w.org= — the canonical runtime definition. Replaces the
+    current =WORG.md= spec when promoted. Defines status enum,
+    classification tags, payload properties, validator KIND
+    registry, plugin registry, lint codes, and extension policy.
+  - =plugins/mcp-federate/manifest.org= — example plugin manifest.
+    Pattern for every plugin: one =manifest.org= per plugin
+    directory, co-located with the implementation crate.
+
+* Promotion path
+  When the design is blessed:
+  1. Move =w.org= to =packages/worg/w.org=.
+  2. Move plugin manifests to =packages/worg-plugin-<name>/manifest.org=
+     (one per crate).
+  3. Reduce =packages/worg/WORG.md= to a stub pointing at =w.org=
+     and the orgmode.org manual.
+  4. Delete this =proposed/= directory.
+
+* What this scaffold is NOT
+  - Not the parser. The parser stays canonical org-mode; nothing
+    here changes grammar.
+  - Not the plugin implementation. Plugins ship as Rust/Elixir code;
+    this directory only shows the declarative manifest shape.
+  - Not a full plugin catalog. Only =mcp-federate= is sketched as a
+    template; real plugins get manifests when they land.

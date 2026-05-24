@@ -12,7 +12,7 @@
 #   - tool stdout/exit                -> #+RESULTS:
 #   - state transitions              -> :LOGBOOK:
 #   - artifact paths produced        -> :ARTIFACT: properties
-#   - inter-stage ordering           -> :DEPENDS_ON: linking by :ID:
+#   - inter-stage ordering           -> :BLOCKER: linking by :ID:
 
 * Run metadata
 :PROPERTIES:
@@ -114,7 +114,7 @@ CLOSED: [2026-05-20 Tue 14:31:05]
 :ID:              stage-script
 :ASSIGNED_AGENT:  gamut-director
 :STAGE_ORDER:     2
-:DEPENDS_ON:      [[id:stage-research]]
+:BLOCKER:      [[id:stage-research]]
 :TOOLS_AVAILABLE: screenplay.parse
 :ARTIFACTS_IN:    brief.md
 :ARTIFACTS_OUT:   script.fountain screenplay.json
@@ -179,7 +179,7 @@ CLOSED: [2026-05-20 Tue 14:31:11]
 :ID:              stage-velocity
 :ASSIGNED_AGENT:  gamut-director
 :STAGE_ORDER:     3
-:DEPENDS_ON:      [[id:stage-script]]
+:BLOCKER:      [[id:stage-script]]
 :TOOLS_AVAILABLE: velocity.propose velocity.validate
 :ARTIFACTS_IN:    screenplay.json
 :ARTIFACTS_OUT:   velocity.json
@@ -212,7 +212,7 @@ CLOSED: [2026-05-20 Tue 14:31:24]
 :ID:              stage-storyboard
 :ASSIGNED_AGENT:  gamut-director
 :STAGE_ORDER:     4
-:DEPENDS_ON:      [[id:stage-script]] [[id:stage-velocity]]
+:BLOCKER:      [[id:stage-script]] [[id:stage-velocity]]
 :TOOLS_AVAILABLE: storyboard.plan storyboard.verify continuity.check
                   transitions.classify director.synthesize
 :ARTIFACTS_IN:    screenplay.json velocity.json
@@ -255,7 +255,7 @@ CLOSED: [2026-05-20 Tue 14:31:24]
 :ID:              stage-asset
 :ASSIGNED_AGENT:  gamut-director
 :STAGE_ORDER:     5
-:DEPENDS_ON:      [[id:stage-storyboard]] [[id:stage-velocity]]
+:BLOCKER:      [[id:stage-storyboard]] [[id:stage-velocity]]
 :TOOLS_AVAILABLE: music.gen image.scene-still shot.img2vid shot.txt2vid
                   shot.refine-face shot.upscale dialogue.tts captions.align
 :ARTIFACTS_IN:    storyboard.json velocity.json
@@ -348,7 +348,7 @@ gamut music gen --prompt "ambient piano, single phrase" --duration 5 --out music
 * TODO [#A] Stage 6 — edit                           :stage:gamut-director:
 :PROPERTIES:
 :ID:              stage-edit
-:DEPENDS_ON:      [[id:stage-asset]]
+:BLOCKER:      [[id:stage-asset]]
 :STAGE_ORDER:     6
 :TOOLS_AVAILABLE: query captions.align dialogue.tts
 :ARTIFACTS_OUT:   cuts.edl
@@ -357,7 +357,7 @@ gamut music gen --prompt "ambient piano, single phrase" --duration 5 --out music
 * TODO [#A] Stage 7 — compose                        :stage:gamut-director:
 :PROPERTIES:
 :ID:              stage-compose
-:DEPENDS_ON:      [[id:stage-edit]]
+:BLOCKER:      [[id:stage-edit]]
 :STAGE_ORDER:     7
 :TOOLS_AVAILABLE: verify query
 :ARTIFACTS_IN:    cuts.edl captions.json
@@ -367,7 +367,7 @@ gamut music gen --prompt "ambient piano, single phrase" --duration 5 --out music
 * TODO [#A] Stage 8 — publish                        :stage:gamut-director:
 :PROPERTIES:
 :ID:              stage-publish
-:DEPENDS_ON:      [[id:stage-compose]]
+:BLOCKER:      [[id:stage-compose]]
 :STAGE_ORDER:     8
 :TOOLS_AVAILABLE: render c2pa.sign c2pa.verify
 :ARTIFACTS_IN:    comp.json
@@ -411,7 +411,7 @@ What worked, what didn't, what worg needs to revise.
 
 ** What mapped cleanly
 - Stages → level-1 headlines with #+TODO: state machine. ✓
-- Inter-stage ordering → :DEPENDS_ON: with [[id:]] links. ✓
+- Inter-stage ordering → :BLOCKER: with [[id:]] links. ✓
 - Success criteria → child headlines tagged with :KIND: property. ✓
 - Tool invocations → either child headline OR source block.
   /Headline-per-invocation reads better/ — gives you state tracking,

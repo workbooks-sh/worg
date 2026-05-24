@@ -1,0 +1,14 @@
+{
+  "id": "autoloop-iteration",
+  "title": "Iteration",
+  "state": "backlog",
+  "created_by": "worg-exporter",
+  "created_at": "2026-05-23T20:00:00Z",
+  "assigned_to": [
+    "workhorse"
+  ],
+  "tags": [
+    "stage",
+    "sandboxed"
+  ]
+}

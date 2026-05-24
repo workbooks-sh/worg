@@ -1,0 +1,22 @@
+[package]
+name = "worg-wasi"
+description = "Bare-metal extern \"C\" exports of worg-parse + worg-query + worg-lint, callable from any Wasm runtime. Built for wasm32-unknown-unknown so Wasmex (Wasmtime under Elixir) can load it directly — wasm-bindgen's JS glue is not usable from BEAM."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+worg-parse = { path = "../worg-parse" }
+worg-query = { path = "../worg-query" }
+worg-lint  = { path = "../worg-lint" }
+orgize     = { workspace = true }
+serde_json = { workspace = true }
+
+[profile.release]
+opt-level = "z"
+lto = true
+codegen-units = 1

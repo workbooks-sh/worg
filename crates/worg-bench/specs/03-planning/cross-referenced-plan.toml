@@ -44,7 +44,7 @@ value = "resume-endpoint"
 [[validate]]
 kind = "has_property"
 headline_index = 2
-name = "DEPENDS_ON"
+name = "BLOCKER"
 value = "persist"
 
 [[validate]]
@@ -56,5 +56,5 @@ value = "integration-test"
 [[validate]]
 kind = "has_property"
 headline_index = 3
-name = "DEPENDS_ON"
+name = "BLOCKER"
 value = "persist resume-endpoint"

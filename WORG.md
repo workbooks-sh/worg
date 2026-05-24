@@ -1,325 +1,57 @@
-# worg — the spec
+# worg
 
-worg is **canonical org-mode** with a fixed set of **conventions** for
+worg is **canonical org-mode** plus a fixed set of conventions for
 multi-agent orchestration. Every `.org` file worg parses is also a
-valid org-mode file that opens cleanly in Emacs. We do not invent
-syntax — we standardize property names, tag meanings, and how source
-blocks dispatch to executors.
+valid org-mode file that opens cleanly in any org viewer. We do not
+invent syntax — we standardize property names, tag meanings, and
+how source blocks dispatch to executors.
 
-This document is authoritative. `worg lint` enforces every rule below.
+## Canonical sources
 
-## Canonical org subset
+This README is a pointer file. The substance lives elsewhere:
 
-### In
+- **Runtime semantics, vocabulary, lint codes** — [`w.org`](./w.org)
+  is the authoritative spec. Status enum, classification tags, payload
+  properties, trust enum, validator KIND registry, plugin registry,
+  source-block dispatch table, file-level keywords, lint rules,
+  extension policy. The worg linter reads this file at startup; edits
+  to `w.org` change lint behavior on the next run.
 
-- **Headlines** + **TODO keywords** + **priority cookies**
-  (`* TODO [#A] Title`)
-- **File-level `#+TODO:` declarations** for custom state machines
-- **`:PROPERTIES:` drawers** with the standardized names listed below
-- **`:LOGBOOK:` drawers** — append-only state transition log; written
-  by the runtime, never hand-edited
-- **Inheritable tags** (`:agent:gamut-director:`)
-- **`DEADLINE: <2026-05-25>`** / **`SCHEDULED:`** active timestamps
-- **`CLOSED: [2026-05-20 Tue 14:30:58]`** inactive close timestamps
-- **Source blocks** with babel headers: `:results`, `:exports`,
-  `:cache`, `:dir`, `:tangle`
-- **`#+RESULTS:`** blocks — captured output, written by the runtime
-- **Links**: `[[id:abc-123]]`, `[[file:./other.org::*Heading]]`
-- **File keywords**: `#+TITLE:`, `#+AUTHOR:`, `#+CATEGORY:`,
-  `#+PROPERTY:` (for file-wide babel header defaults)
+- **Grammar** — [orgmode.org/manual](https://orgmode.org/manual/) is
+  the org-mode reference. worg is a strict subset; anything that
+  parses there parses here.
 
-### Out
+- **Plugin registry** — see `w.org`'s `* Plugin registry` section.
+  Each plugin's behavior is documented in
+  [`packages/worg-plugin-<name>/manifest.org`](../) (sibling crates
+  to this one).
 
-- **Babel noweb refs** (`<<name>>`) and **auto-tangle on save** —
-  too Emacs-centric, hard to debug at a distance
-- **Org-agenda's query DSL** — superseded by `worg query`
-- **Capture templates**, **clock tables**, **LaTeX/Beamer export** —
-  UI/feature concerns out of scope for the runtime
-- **Outline folding/visibility state** — UI-only
-- **Org-roam node graph extensions** — `[[id:]]` links are kept, but
-  the roam-specific cache is not part of worg
+- **Dependency layers + ownership** — [`CLAUDE.md`](../../CLAUDE.md)
+  "Dependency layers (what eats what)" describes how worg fits with
+  Watershed, the Workbooks runtime, and the orchestrator protocol.
+  worg is **runtime- and consumer-agnostic**; Watershed-specific
+  concerns (runtime targets, dispatch, sandboxing) live in
+  Watershed's glossary extension, not in worg itself.
 
-A file using out-of-scope features still *parses* — the parser
-ignores or pass-throughs unrecognized constructs. `worg lint` warns.
+## Crates
 
-## TODO keyword convention
-
-Files **should** declare an explicit `#+TODO:` line. If absent, worg
-assumes the default below.
-
-```
-#+TODO: TODO(t) DOING(g) BLOCKED(b@/!) | DONE(d!) FAILED(f@) ABANDONED(a@)
-```
-
-- `TODO` — work not yet started
-- `DOING` — assigned and in flight
-- `BLOCKED` — gated by a `:DEPENDS_ON:` reference, deadline, or human input
-- `DONE` — completed successfully; validators (if any) all passed
-- `FAILED` — terminal failure; validator failed or executor returned
-  non-zero past retry limit
-- `ABANDONED` — closed without completion (cost cap, cancellation)
-
-The `!` after a keyword means "log timestamp on entry"; `@` means
-"log timestamp + a note prompt." Both write to `:LOGBOOK:`.
-
-Custom keyword sets are permitted *per document* via `#+TODO:` —
-the scheduler reads the document's declaration, not a global one.
-
-## Standardized property names
-
-These names are reserved. `worg lint` flags unknown UPPERCASE
-properties as drift candidates (warning, not error — projects can
-extend, but should add the extension to a local `:WORG_EXTENSIONS:`
-file-keyword).
-
-### Identity + ownership
-
-| Property | Meaning |
+| Crate | Purpose |
 |---|---|
-| `:ID:` | Stable identifier for this headline. Required for any headline referenced by `[[id:...]]` or `:DEPENDS_ON:`. |
-| `:ASSIGNED_AGENT:` | Slug of the agent that owns this headline. Matches an `agentsCatalog` entry. |
-| `:RUN_ID:` | Cross-reference into Workbooks Orchestrator Protocol runs. |
-| `:CATEGORY:` | Free-form classification (overrides file-level `#+CATEGORY:`). |
-
-### Scheduling + dependencies
-
-| Property | Meaning |
-|---|---|
-| `:DEPENDS_ON:` | Space-separated list of `[[id:...]]` links. Headline stays `BLOCKED` until every referent is `DONE` or `ABANDONED`. |
-| `:STAGE_ORDER:` | Integer hint for human-readable ordering when multiple stages have no `DEPENDS_ON` edge between them. Not load-bearing for the scheduler. |
-| `:TIMEOUT_MS:` | Wall-clock timeout for this headline's executor. Default: no timeout. |
-
-### Budgets + retries
-
-| Property | Meaning |
-|---|---|
-| `:TOOL_BUDGET:` | Token / wall-clock / dollar budget. Format: `tokens=N wallclock=Ns cost_usd=N.N` |
-| `:RETRY_POLICY:` | Format: `max=N backoff=fixed\|exponential fallback=<keyword>` |
-| `:COST_USD:` | Actual cost incurred. Written by the executor on success. |
-
-### Tools + artifacts
-
-| Property | Meaning |
-|---|---|
-| `:TOOL:` | Tool name, on a sub-headline representing one tool invocation. |
-| `:TOOLS_AVAILABLE:` | Whitespace-separated list of tool slugs the agent may call within this stage. Parent-level. |
-| `:ARTIFACT:` | A `file:` link to one artifact this headline produced. Multiple `:ARTIFACT:` lines permitted. |
-| `:ARTIFACTS_IN:` | Whitespace-separated paths consumed by this stage. |
-| `:ARTIFACTS_OUT:` | Whitespace-separated paths produced by this stage. |
-
-### Executor dispatch
-
-| Property | Meaning |
-|---|---|
-| `:TRUST_LEVEL:` | `sandboxed` \| `full`. Required for source blocks the runtime executes. Sandboxed → Luerl for Lua, `Port` with restricted env for shell. Full → no restrictions. |
-| `:DERIVED:` | `t` if this headline's body is regenerated by the runtime on every parent update. Hand edits will be overwritten. |
-| `:KIND:` | Validator kind (e.g., `artifact_exists`, `cmd_zero_exit`, `screenplay_parse_clean`). Required on validator sub-headlines. |
-
-## Tag conventions
-
-Tags are used for **discrimination** the runtime branches on. Tag
-names are lowercase, colon-bounded, and inheritable down the tree.
-
-**Org tag character constraint:** tags may only contain letters,
-digits, `_`, and `@`. **Hyphens are not allowed** — `gamut-director`
-is *not* a valid tag. Use the `:ASSIGNED_AGENT:` property for slug
-references that contain hyphens; reserve tags for classification
-names that are alphanumeric (`agent`, `workhorse`, `director`,
-`stage`, `validator`, `tool`, etc.).
-
-| Tag | Meaning |
-|---|---|
-| `:stage:` | Top-level stage of a pipeline. Scheduler treats as a logical group. |
-| `:tool:` | Sub-headline representing one tool invocation. Must have `:TOOL:` property. |
-| `:validator:` | Sub-headline representing a success criterion. Must have `:KIND:` property. |
-| `:input:` | Source data — brief, screenplay, dataset reference. |
-| `:agent:<slug>:` | Identifies which agent authored or is assigned to the subtree. Inheritable. |
-| `:retry-needed:` | Marks a headline whose executor failed and is queued for retry. Cleared on success. |
-| `:review:` | Section requires human attention. Surfaced in the worg viewer. |
-
-Inheritance: a parent's tags apply to descendants unless overridden.
-`worg query --tag=validator` returns all validators across the file
-including those nested under stages.
-
-## Source block dispatch model
-
-A source block with a `:results` header is **executed** by the
-runtime when its parent headline transitions `TODO → DOING`. The
-language identifier determines the executor:
-
-| Language | Executor | Trust model |
-|---|---|---|
-| `shell` / `bash` / `sh` | Elixir `Port` with `:TIMEOUT_MS:` enforcement | `:TRUST_LEVEL:` required |
-| `elixir` | `Code.eval_string/3` in a supervised `Task` | `:TRUST_LEVEL: full` required |
-| `lua` | Luerl interpreter on BEAM | sandboxed by construction |
-| any other | Returns `{:error, {:unsupported_language, lang}}` |
-
-**Tool calls go through `shell`.** Don't invent worg-specific
-languages like `:gamut` or `:fs-write` — they aren't real Babel
-languages and break Emacs. Use:
-
-```
-#+begin_src shell
-gamut screenplay parse --path script.fountain --out screenplay.json
-#+end_src
-```
-
-The `:TOOL:` property on the parent headline disambiguates which
-logical tool was called for query and observability purposes.
-
-### Tool args >3 keys: use a JSON source block
-
-For tools with many or nested args, embed a JSON block in the
-headline body rather than flattening into `:ARG_X:` properties:
-
-```
-* TODO storyboard.plan :tool:
-:PROPERTIES:
-:TOOL:      storyboard.plan
-:STEP:      11
-:END:
-
-#+begin_src json :name storyboard.plan-args
-{
-  "velocity": "velocity.json",
-  "match_runtime": 5,
-  "out": "storyboard.json",
-  "screenplay": "script.fountain"
-}
-#+end_src
-```
-
-The executor reads the `:name <tool-name>-args` block adjacent to
-the headline. Flat `:ARG_X:` properties are still permitted for
-≤3 keys (one-line tools).
-
-## Retries
-
-Failed executions append to the parent headline's `:LOGBOOK:` —
-they do **not** create sibling FAILED headlines. A single tool
-invocation produces one headline; that headline's logbook records
-every attempt.
-
-```
-* DONE dialogue.tts :tool:
-:PROPERTIES:
-:TOOL:         gamut.dialogue.tts
-:RETRY_POLICY: max=2 backoff=exponential fallback=dry_run
-:END:
-:LOGBOOK:
-- Attempt 1 [2026-05-20 Tue 14:31:30] backend=elevenlabs → exit=2 (missing key)
-- Attempt 2 [2026-05-20 Tue 14:31:35] backend=synthetic → exit=3 (unknown backend)
-- Attempt 3 [2026-05-20 Tue 14:31:40] dry_run=true → exit=0
-- State "DONE" from "DOING" [2026-05-20 Tue 14:31:40]
-:END:
-```
-
-Rationale: outline scannability. Three FAILED sibling headlines
-plus one DONE clutters the tree without adding queryable data.
-
-## Derived sections
-
-Sections whose content is **regenerated by the runtime** must carry
-`:DERIVED: t` so hand edits are knowingly destroyed on the next
-write. Common examples: the chronological run log, aggregated cost
-summaries, validator status rollups.
-
-```
-* Run log
-:PROPERTIES:
-:DERIVED: t
-:END:
-- step 0 ...
-```
-
-`worg lint` warns if a non-DERIVED section has been touched between
-two runtime writes that should have been idempotent.
-
-## Validators
-
-A validator is a child headline with the `:validator:` tag and a
-`:KIND:` property. Validator kinds come from a registry the runtime
-holds (e.g., `artifact_exists`, `cmd_zero_exit`, `screenplay_parse_clean`,
-`storyboard_verify_passes`, `continuity_check_zero_errors`,
-`c2pa_verify_passes`, `vlm_verify_passes_per_shot`).
-
-The parent stage transitions `DOING → DONE` only when **every**
-child validator is `DONE`. Any validator in `FAILED` keeps the
-parent in `DOING` with a logbook note.
-
-```
-* DOING Stage — research :stage:
-** DONE Validator: artifact_exists brief.md :validator:
-:PROPERTIES:
-:KIND:     artifact_exists
-:ARG_PATH: brief.md
-:END:
-** DONE Validator: brief.check :validator:
-:PROPERTIES:
-:KIND:     brief_check_passes
-:ARG_PATH: brief.md
-:END:
-```
-
-The runtime appends `#+RESULTS:` blocks beneath validator headlines
-when executed, capturing `exit=N`, stdout summary, and the validator
-verdict.
-
-## Links
-
-| Form | Use |
-|---|---|
-| `[[id:abc-123]]` | Reference another headline by `:ID:`. Used in `:DEPENDS_ON:`, run logs, prose. |
-| `[[file:./other.org::*Heading]]` | Cross-file headline reference by title match. |
-| `[[file:./path/to/file]]` | Plain file reference. Resolves relative to document directory. |
-
-`worg lint` validates that every `[[id:...]]` target exists.
-
-## File-level keywords
-
-Required (or strongly recommended):
-
-| Keyword | Purpose |
-|---|---|
-| `#+TITLE:` | Human-readable title. |
-| `#+TODO:` | State machine. Use the default if you have no reason to deviate. |
-
-Optional:
-
-| Keyword | Purpose |
-|---|---|
-| `#+AUTHOR:` | Authoring agent or human. |
-| `#+CATEGORY:` | Default `:CATEGORY:` for all headlines. |
-| `#+PROPERTY: header-args ...` | File-wide babel defaults. |
-| `#+WORG_EXTENSIONS:` | Local property/tag names beyond the standardized set. |
-
-## Linter rules (worg lint)
-
-| Code | Severity | Rule |
-|---|---|---|
-| W001 | warn  | Unknown uppercase property — possible drift |
-| W002 | warn  | Headline with `:DEPENDS_ON:` pointing at missing `:ID:` |
-| W003 | warn  | Source block with `:results` but no `:TRUST_LEVEL:` |
-| W004 | warn  | Non-`:DERIVED:` section modified between idempotent writes |
-| W005 | warn  | Invented source-block language (not in dispatch table) |
-| W006 | warn  | Validator headline missing `:KIND:` |
-| W007 | warn  | `:TOOL_BUDGET:` exceeded by sum of descendant `:COST_USD:` |
-| E001 | error | Unparseable org syntax (malformed drawer, unclosed source block) |
-| E002 | error | TODO keyword used that's not in the document's `#+TODO:` declaration |
-| E003 | error | `[[id:...]]` target does not exist in the document |
-| E004 | error | Source block in unsupported language with `:results` |
+| `crates/worg-parse` | Parser + AST + edit-preserving serializer |
+| `crates/worg-query` | Predicate-based queries over the AST |
+| `crates/worg-lint`  | Lint rules driven by `w.org` glossary |
+| `crates/worg-orch`  | Wire-format types + walkers for the Workbooks Orchestrator Protocol |
+| `crates/worg-cli`   | `worg` command-line tool |
+| `crates/worg-nif`   | Rustler NIF bindings for Elixir (`Worg.Parser`) |
+| `crates/worg-wasm`  | wasm-bindgen targets for nodejs + web |
+| `crates/worg-wasi`  | Bare-metal wasm exports for Wasmex (BEAM) |
+| `crates/worg-bench` | Benchmark harness |
+| `elixir/worg`       | Elixir API consuming the NIF |
 
 ## Extension policy
 
-worg's standardized vocabulary is **deliberately small**. Projects
-that need additional property names or tags should:
-
-1. Add them to a `#+WORG_EXTENSIONS:` keyword at the top of the file
-   so `worg lint` does not warn.
-2. Document them in a project-local `WORG_EXTENSIONS.md` next to the
-   file.
-3. Propose them upstream if the use case is general — open an issue
-   against this spec.
-
-We will *not* accept extensions that change parser behavior. Parser
-behavior is canonical org-mode behavior, full stop.
+worg's standardized vocabulary is deliberately small. Projects that
+need additional property names, tags, or plugins should ship them in
+a separate glossary file and reference it from individual files via
+`#+GLOSSARY: ./path/to/extra.org` at the top. See `w.org`'s
+`* Extension policy` for the full rules.

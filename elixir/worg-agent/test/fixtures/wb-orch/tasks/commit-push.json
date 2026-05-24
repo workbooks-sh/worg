@@ -1,0 +1,13 @@
+{
+  "id": "commit-push",
+  "title": "commit and push",
+  "state": "backlog",
+  "created_by": "worg-exporter",
+  "created_at": "2026-05-23T20:00:00Z",
+  "description": "#+begin_src shell :var ISSUE=pick-issue-id :results output :tangle no\n   cd /Users/shinyobjectz/Apps/workbooks\n   git add apps/watershed packages/broker/worker/test/security\n   git commit -m \"watershed: <one-line summary>\n\n   <body referencing $ISSUE and test deltas>\n\n   Closes $ISSUE.\"\n   git push origin main\n   #+end_src",
+  "parent": "autoloop-iteration",
+  "tags": [
+    "stage",
+    "sandboxed"
+  ]
+}

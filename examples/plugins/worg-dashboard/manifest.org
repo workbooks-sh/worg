@@ -1,0 +1,67 @@
+#+TITLE: worg-dashboard
+#+VERSION: 1
+#+SLOT: dynamic-block-writer
+
+* About
+  Renders pass/fail/flake statistics for a file's =:validator:= tree
+  back into the file as an org table. Reads validator state and
+  =:LOGBOOK:= attempt history from the document itself; no external
+  storage. Use to keep a test-status dashboard co-located with the
+  tests that produce it.
+
+* Block syntax
+  #+begin_src org :tangle no
+  ,#+BEGIN: worg-dashboard :window <duration> :group_by <tag-or-prop>
+  ,#+END:
+  #+end_src
+
+  The writer reads validators across the current file (or the agenda
+  scope if =:scope: agenda=) and emits a table with one row per
+  validator, columns for run count / pass count / fail count /
+  flake-rate / last-fail timestamp.
+
+* Parameters                                                       :params:
+
+** window
+   Optional. Duration string (=7d=, =30d=, =all=). Default =7d=.
+   Controls how far back the LOGBOOK is read for aggregation.
+
+** group_by
+   Optional. =validator= (default), or a tag name like =stage=, or a
+   property name. Determines how rows are bucketed.
+
+** scope
+   Optional. =file= (default) or =agenda= (across every file the worg
+   agenda command reaches).
+
+* Example
+  #+begin_src org :tangle no
+  ,#+BEGIN: worg-dashboard :window 7d
+  | validator                       | runs | pass | fail | flake% | last_fail        |
+  |---------------------------------+------+------+------+--------+------------------|
+  | cart total renders pre-network  |    7 |    7 |    0 |    0.0 | —                |
+  | stripe_elements_v3.2.1 pinned   |    7 |    7 |    0 |    0.0 | —                |
+  | checkout p95 < 800ms            |    7 |    5 |    2 |   28.6 | 2026-05-23 09:14 |
+  ,#+END:
+  #+end_src
+
+* Errors
+
+** E201 — no validators in scope
+   The dashboard found zero =:validator:= headlines under the
+   configured scope. The writer leaves the table empty and emits a
+   single-line note.
+
+** E202 — LOGBOOK parse failure
+   A LOGBOOK drawer in a validator's body could not be parsed for
+   attempt history. The writer skips that validator's row and notes
+   the parse failure in the body comment.
+
+* Implementation
+  Rust crate: =packages/worg-plugin-dashboard=
+  Slot: =dynamic-block-writer=
+  Entry point: =worg_plugin_dashboard::write_block=
+  Registered in: [[file:../worg/w.org::*Plugin registry]]
+
+  Shares the LOGBOOK-parsing utilities with =worg-query= and the
+  table-rendering helpers with =worg-render=.

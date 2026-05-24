@@ -1,0 +1,57 @@
+[package]
+name = "worg-agent"
+description = "Rust runtime for WORG-defined agents. Sibling to the Elixir worg-agent runtime — same WORG contract (agent.org + plan.org schemas, tool dispatch protocol, Run wire format), different host. Built for wavelet evals where the agent and the renderer share a single-language stack."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+# Wire-format types we already share with the Elixir runtime + the
+# orchestrator CLI. Re-exported as `worg_agent::wire`.
+worg-orch = { path = "../worg-orch" }
+
+# Org-mode parse + query are pure-Rust libraries we depend on for
+# loading agent.org / plan.org files. Replaces the Elixir loader/*
+# layer (~413 LOC) with calls into these crates.
+worg-parse = { path = "../worg-parse" }
+worg-query = { path = "../worg-query" }
+
+# Direct dep on orgize gives the worg_parse public Headline API a
+# stable name we can spell in tool signatures. worg-parse re-exports
+# parts but holding the dep avoids drift.
+orgize = { workspace = true }
+
+# Base64 for image-block encoding (frame_judge / video_judge).
+base64 = "0.22"
+
+# Foundational.
+serde = { workspace = true }
+serde_json = { workspace = true }
+time = { workspace = true }
+
+# Errors.
+thiserror = { workspace = true }
+anyhow = { workspace = true }
+
+# HTTP + async. reqwest's "json" feature gives us serde wiring out of
+# the box; rustls-tls keeps us off OpenSSL.
+tokio = { version = "1", features = ["macros", "rt-multi-thread", "fs", "process", "io-util", "time", "sync"] }
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls", "stream"] }
+async-trait = "0.1"
+futures = "0.3"
+
+# Observability — tracing replaces :telemetry events from the Elixir
+# runtime. Subscribers wire up at the binary edge.
+tracing = "0.1"
+
+tempfile = "3"
+clap = { workspace = true }
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+[dev-dependencies]
+tokio = { version = "1", features = ["macros", "rt-multi-thread", "test-util"] }
+
+[[bin]]
+name = "worg-agent"
+path = "src/bin/worg-agent.rs"

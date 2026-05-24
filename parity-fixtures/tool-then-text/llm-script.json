@@ -1,0 +1,36 @@
+[
+  {
+    "message": {
+      "role": "assistant",
+      "content": null,
+      "tool_calls": [
+        {
+          "id": "call_parity_1",
+          "type": "function",
+          "function": {
+            "name": "bash",
+            "arguments": "{\"command\":\"echo 2026-05-24T18:00:00Z\"}"
+          }
+        }
+      ]
+    },
+    "usage": {
+      "prompt_tokens": 30,
+      "completion_tokens": 20,
+      "cost": null
+    },
+    "finish_reason": "tool_calls"
+  },
+  {
+    "message": {
+      "role": "assistant",
+      "content": "The current time is 2026-05-24T18:00:00Z."
+    },
+    "usage": {
+      "prompt_tokens": 50,
+      "completion_tokens": 12,
+      "cost": null
+    },
+    "finish_reason": "stop"
+  }
+]

@@ -1,0 +1,93 @@
+#+TITLE: mcp-federate
+#+VERSION: 1
+#+SLOT: dynamic-block-writer
+
+* About
+  Federates a query across multiple MCP servers and joins their
+  responses into a single org table. Use when you need a unified view
+  of data that lives in two or more systems — Stripe customers
+  joined to PostHog activity joined to Linear support tickets, for
+  example — and you want the join result checked into git as a plain
+  org table.
+
+  The block re-renders on demand (=worg dblock-update= on the file).
+  Cached responses live in =./.worg-cache/= keyed by request hash.
+
+* Block syntax
+  #+begin_src org :tangle no
+  ,#+BEGIN: mcp-federate :join <key> :as-of <iso-date>
+  :- {server: <slug>, tool: <slug>, select: [<fields>]}
+  :- {server: <slug>, tool: <slug>, select: [<fields>]}
+  ,#+END:
+  #+end_src
+
+  Body lines starting with =:-= declare server queries. Each is a
+  loose JSON object — the writer parses them, dispatches in
+  parallel, and joins on the =join= key.
+
+* Parameters                                                       :params:
+
+** join
+   Required. Field name used as the join key across server responses.
+   Every server's response must contain a field with this name.
+
+** as-of
+   Optional. ISO timestamp. Passed to each underlying MCP =tools/call=
+   as a =as_of= argument; ignored by servers that don't accept it.
+
+** cache
+   Optional. =yes= (default) or =no=. When =yes=, the block's content
+   is regenerated only when the request hash changes.
+
+** servers
+   Declared as =:-= prefixed list items inside the block body.
+   Each entry: ={server, tool, select[, where, group_by, agg]}=.
+
+* Example
+  #+begin_src org :tangle no
+  ,#+BEGIN: mcp-federate :join customer_id :as-of "2026-05-22"
+  :- {server: stripe,   tool: list_customers, select: [id, mrr]}
+  :- {server: posthog,  tool: query_persons,  select: [id, last_seen]}
+  :- {server: linear,   tool: list_issues,    where: "team=support", group_by: customer_id, agg: count}
+
+  | customer_id | mrr  | last_seen   | open_issues |
+  |-------------+------+-------------+-------------|
+  | cus_8aF...  | $890 | 2026-05-21  |           2 |
+  | cus_b22...  | $310 | 2026-05-19  |           0 |
+  ,#+END:
+  #+end_src
+
+* Errors
+
+** E101 — missing join key
+   A server's response did not contain the field named in =:join=.
+   The writer fails the block and leaves the previous body untouched.
+
+** E102 — server unreachable
+   One or more declared servers could not be contacted within the
+   plugin's timeout. The writer fails the block; partial results are
+   not written.
+
+** E103 — schema drift
+   A server's response shape differs from its last successful call
+   in a way that breaks the =select= projection. The writer fails
+   with a diff of the schema change.
+
+* Implementation
+  Rust crate: =packages/worg-plugin-mcp-federate=
+  Slot: =dynamic-block-writer=
+  Entry point: =worg_plugin_mcp_federate::write_block=
+  Registered in: [[file:../worg/w.org::*Plugin registry]]
+
+  Depends on the MCP client crate (=packages/mcp-client=) for
+  =tools/call= dispatch. Cache layer lives in
+  =packages/worg-cache= and is shared with other plugins that opt
+  into content-addressed result storage.
+
+* Security                                                       :review:
+  MCP servers may receive sensitive identifiers (customer IDs, email
+  addresses) when this block runs. The writer respects the parent
+  headline's =:TRUST_LEVEL:= property: =sandboxed= restricts which
+  servers may be queried (allowlist in =w.org='s extension section);
+  =full= permits any registered server. Federation results are
+  cached in =./.worg-cache/= which =worg lint= flags as ignorable.

@@ -16,8 +16,48 @@
 use orgize::ast::{Drawer, Headline, SourceBlock};
 use orgize::rowan::ast::AstNode;
 use orgize::rowan::{TextRange, TextSize};
-use orgize::{Org, SyntaxKind, SyntaxNode};
+use orgize::{Org, ParseConfig, SyntaxKind, SyntaxNode};
 use thiserror::Error;
+
+/// GTD-aligned TODO keyword set, used as the default for every worg document.
+///
+/// org-mode core only recognizes `TODO` and `DONE` out of the box; orgize
+/// inherits that behavior, so a headline like `* NEXT pick a thing` parses
+/// "NEXT pick a thing" as the title rather than extracting `NEXT` as the
+/// state keyword. To recover the org-gtd vocabulary (which is what an LLM
+/// reading a worg file expects, and what the wb-0mqz migration adopts) we
+/// build orgize's [`ParseConfig`] with the full keyword set.
+///
+/// The split:
+/// - **active** (left of `|` in `#+TODO:` syntax): `TODO NEXT WAITING DOING
+///   SOMEDAY`. SOMEDAY is included even though most plans don't use it —
+///   adding it costs nothing and a plan that does declare it gets the
+///   expected behavior.
+/// - **done** (right of `|`): `DONE CANCELED FAILED`. `BLOCKED` and
+///   `ABANDONED` are kept on the active side as legacy back-compat —
+///   pre-GTD worg files using them continue to parse with the same
+///   semantics as before this change.
+fn gtd_parse_config() -> ParseConfig {
+    ParseConfig {
+        todo_keywords: (
+            vec![
+                "TODO".into(),
+                "NEXT".into(),
+                "WAITING".into(),
+                "DOING".into(),
+                "SOMEDAY".into(),
+                "BLOCKED".into(),
+            ],
+            vec![
+                "DONE".into(),
+                "CANCELED".into(),
+                "FAILED".into(),
+                "ABANDONED".into(),
+            ],
+        ),
+        ..ParseConfig::default()
+    }
+}
 
 /// One source block under a headline — language tag, body, and a stable
 /// 0-based index of where it sits among the headline's source blocks.
@@ -40,6 +80,15 @@ pub enum WorgError {
     RoundTripDrift,
     #[error("invalid argument: {0}")]
     InvalidArg(String),
+    /// CAS check failed — current state is not what the caller expected.
+    /// wb-nlln.18: prevents concurrent claims / transitions from silently
+    /// stomping each other.
+    #[error("state mismatch on `{id}`: expected one of {expected:?}, actual {actual:?}")]
+    StateMismatch {
+        id: String,
+        expected: Vec<String>,
+        actual: Option<String>,
+    },
 }
 
 /// One parsed worg document. Wraps [`orgize::Org`] with worg-specific helpers.
@@ -49,8 +98,12 @@ pub struct Document {
 
 impl Document {
     /// Parse a worg/org document from source text.
+    ///
+    /// Uses a GTD-aligned [`ParseConfig`] so headline keywords like
+    /// `NEXT` / `WAITING` / `DOING` / `CANCELED` are extracted as state
+    /// keywords rather than swallowed into the title.
     pub fn parse(src: &str) -> Self {
-        Document { org: Org::parse(src) }
+        Document { org: gtd_parse_config().parse(src) }
     }
 
     /// Serialize the document back to org-mode text.
@@ -103,6 +156,49 @@ impl Document {
     /// Returns an error if the headline doesn't exist or has no current TODO
     /// keyword.
     pub fn transition_todo(&mut self, id: &str, new_state: &str) -> Result<(), WorgError> {
+        let hl = self
+            .find_by_id(id)
+            .ok_or_else(|| WorgError::HeadlineNotFound(id.to_string()))?;
+        let keyword = hl.todo_keyword().ok_or(WorgError::NoTodoKeyword)?;
+        self.org
+            .replace_range(keyword.syntax().text_range(), new_state);
+        Ok(())
+    }
+
+    /// CAS variant of [`Document::transition_todo`] — only transitions
+    /// when the headline's current TODO keyword is in `expected`.
+    /// Returns [`WorgError::StateMismatch`] otherwise.
+    ///
+    /// wb-nlln.18: when paired with file-level locking in the CLI, two
+    /// concurrent `claim` invocations against the same task can no
+    /// longer both succeed silently — exactly one wins, the other gets
+    /// a clear "state changed under us" error.
+    pub fn transition_todo_cas(
+        &mut self,
+        id: &str,
+        expected: &[&str],
+        new_state: &str,
+    ) -> Result<(), WorgError> {
+        let hl = self
+            .find_by_id(id)
+            .ok_or_else(|| WorgError::HeadlineNotFound(id.to_string()))?;
+        let current = hl.todo_keyword().map(|t| t.to_string());
+
+        let matched = match &current {
+            None => expected.is_empty(),
+            Some(state) => expected.iter().any(|e| *e == state),
+        };
+
+        if !matched {
+            return Err(WorgError::StateMismatch {
+                id: id.to_string(),
+                expected: expected.iter().map(|s| s.to_string()).collect(),
+                actual: current,
+            });
+        }
+
+        // Re-find the headline after the borrow so the mutable replace
+        // doesn't conflict with the immutable read above.
         let hl = self
             .find_by_id(id)
             .ok_or_else(|| WorgError::HeadlineNotFound(id.to_string()))?;
@@ -169,7 +265,7 @@ impl Document {
     /// exists, its value is replaced. The `:ID:` property is set automatically
     /// by orgize when this headline was created and CANNOT be changed via this
     /// method (would invalidate the find_by_id contract). Use this for
-    /// `:DEPENDS_ON:`, `:ASSIGNED_TO:`, `:CAPABILITIES:`, custom keys, etc.
+    /// `:BLOCKER:`, `:ASSIGNED_TO:`, `:CAPABILITIES:`, custom keys, etc.
     pub fn set_property(
         &mut self,
         id: &str,
@@ -533,6 +629,41 @@ echo hello
     fn transition_todo_missing_id_errs() {
         let mut doc = Document::parse(SAMPLE);
         let err = doc.transition_todo("nope", "DOING").unwrap_err();
+        matches!(err, WorgError::HeadlineNotFound(_));
+    }
+
+    #[test]
+    fn transition_todo_cas_accepts_when_expected_matches() {
+        let mut doc = Document::parse(SAMPLE);
+        doc.transition_todo_cas("task-1", &["TODO", "NEXT"], "DOING").unwrap();
+        let out = doc.serialize();
+        assert!(out.contains("* DOING First task"));
+    }
+
+    #[test]
+    fn transition_todo_cas_rejects_when_state_mismatches() {
+        let mut doc = Document::parse(SAMPLE);
+        // First transition takes the task to DOING.
+        doc.transition_todo_cas("task-1", &["TODO"], "DOING").unwrap();
+        // Second concurrent claimer expects TODO but finds DOING.
+        let err = doc
+            .transition_todo_cas("task-1", &["TODO"], "DOING")
+            .unwrap_err();
+        match err {
+            WorgError::StateMismatch { id, actual, .. } => {
+                assert_eq!(id, "task-1");
+                assert_eq!(actual.as_deref(), Some("DOING"));
+            }
+            other => panic!("expected StateMismatch, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn transition_todo_cas_propagates_missing_id() {
+        let mut doc = Document::parse(SAMPLE);
+        let err = doc
+            .transition_todo_cas("nope", &["TODO"], "DOING")
+            .unwrap_err();
         matches!(err, WorgError::HeadlineNotFound(_));
     }
 

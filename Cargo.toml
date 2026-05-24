@@ -7,7 +7,10 @@ members = [
     "crates/worg-lint",
     "crates/worg-nif",
     "crates/worg-wasm",
+    "crates/worg-wasi",
     "crates/worg-bench",
+    "crates/worg-orch",
+    "crates/worg-agent",
 ]
 
 [workspace.package]
@@ -44,3 +47,7 @@ clap = { version = "4", features = ["derive"] }
 # Error handling.
 thiserror = "2"
 anyhow = "1"
+
+# Timestamps. Matches orchestrator-core's choice so our JSON round-trips
+# wire-compatible against `.wb-orch/` files written by either side.
+time = { version = "0.3", features = ["serde", "serde-well-known", "macros"] }

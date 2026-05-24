@@ -60,7 +60,7 @@ pattern = "(?i):ASSIGNED(_TO)?:\\s*[Cc]arol"
 # Dependency pointer from OAuth or guide back to the resolver task
 [[validate]]
 kind = "regex"
-pattern = "(?i):(DEPENDS_ON|BLOCKED_BY|PARENT):"
+pattern = "(?i):(BLOCKER|DEPENDS_ON|BLOCKED_BY|PARENT):"
 
 # The critical-path task is named in the document
 [[validate]]

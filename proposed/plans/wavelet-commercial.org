@@ -1,0 +1,428 @@
+#+TITLE: Wavelet Commercial Pipeline
+#+VERSION: 1
+#+GLOSSARY: ../../w.org
+#+CATEGORY: plan
+#+DESCRIPTION: Canonical 8-stage DAG for end-to-end generative video. Mirrors packages/wavelet/pipeline_defs/commercial.yaml v3.0.0 as org. Consumed by wavelet-director.
+
+This plan instance carries 8 stages: research → concept-pick → script →
+velocity → storyboard → asset → edit → compose → publish. Each stage
+declares its required artifacts in/out, the wavelet/brandwork tools it
+may call, and the validators that gate transition to the next stage.
+
+Sequencing is by document order — the runtime executes stages
+top-to-bottom unless a `:BLOCKER:` property declares an explicit
+cross-edge. Within a stage, parallelism is allowed (shot generation
+fans out across scenes; music + dialogue run concurrently with
+shot-gen once storyboard lands).
+
+The =:ASSIGNED_AGENT: wavelet-director= property on each stage points
+to the agent file at =../agents/wavelet-director.org=. Future plan
+variants (=wavelet-ugc.org=, =wavelet-motion-graphics.org=) reuse the
+same agent with concept-specific stage tweaks.
+
+GAP notes flag validator KINDs not yet in w.org's registry — those
+need to land before this plan can lint clean against a strict
+glossary.
+
+* Brief                                                  :input:9-line:
+  :PROPERTIES:
+  :ID:        brief
+  :END:
+
+  The user's input — a 9-slot ad creative spec (PRODUCT / AUDIENCE /
+  INSIGHT / PROMISE / PROOF / TONE / MUSIC / CALL / RUNTIME). Long-form
+  prose briefs get distilled into this shape during the research stage.
+
+* TODO Stage 1 — research                       :stage:wavelet-director:
+  :PROPERTIES:
+  :ID:               research
+  :ASSIGNED_AGENT:   wavelet-director
+  :ARTIFACTS_OUT:    brief.md strategy.md
+  :END:
+
+  Pick a creative concept (Organic / Direct Response / Animated /
+  Cinematic). Distill the 9-line brief. Run the four-call brandwork
+  pre-flight (=brief=, =brand fetch=, =brand product=, =ads search=)
+  and retrieve a real logo asset. If the brief names a parent brand
+  whose product ships under a sub-brand, resolve to the real product
+  brand FIRST via =brandwork resolve=. Record everything verbatim in
+  =strategy.md=. See =/skills/wavelet-director/SKILL.md= Phase 1 gate.
+
+  Tools the agent may call (whitespace-separated below; runtime
+  scopes by =:TOOLS_AVAILABLE:= once that property lands per
+  wb-nlln.2):
+  - =brandwork_resolve=
+  - =brandwork_brief=
+  - =brandwork_brand_fetch=
+  - =brandwork_brand_product=
+  - =brandwork_ads_search=
+  - =wavelet_brief_check=
+  - =web_search=
+  - =web_fetch=
+
+** TODO Validator: brief.md exists                          :validator:
+   :PROPERTIES:
+   :KIND:      artifact_exists
+   :ARG_PATH:  brief.md
+   :END:
+
+** TODO Validator: wavelet brief check passes               :validator:
+   :PROPERTIES:
+   :KIND:      brief_check_passes
+   :ARG_PATH:  brief.md
+   :END:
+
+   # GAP: KIND `brief_check_passes` is wavelet-specific. Implementation
+   # lives at packages/wavelet/src/agent/plan/validators/. Needs to be
+   # added to w.org's Validator KIND registry section (track under a
+   # new wb-nlln sub-issue: "extend w.org registry with wavelet
+   # validator kinds").
+
+** TODO Validator: brandwork research done                  :validator:
+   :PROPERTIES:
+   :KIND:      brandwork_research_done
+   :END:
+
+   # GAP: KIND `brandwork_research_done` — same gap. Wavelet-side impl
+   # at packages/wavelet/src/agent/plan/validators/trace.rs already
+   # checks the brandwork trace file for the required verb set
+   # (brief, brand, ads), each with non-trivial stdout. Registry entry
+   # needs to point at that.
+
+** TODO Validator: real logo retrieved                      :validator:
+   :PROPERTIES:
+   :KIND:      cmd_zero_exit
+   :ARG_CMD:   test -s refs/brand-logo.* 2>/dev/null
+   :END:
+
+   Logo retrieval is hard-required (see SKILL.md Phase 1 gate). If
+   =brand.logo_url= 404s, the runtime escalates via fallback paths
+   (brandfetch / logo.dev / og:image scrape). If all fail, the
+   pipeline stops here.
+
+* TODO Stage 2 — concept-pick                  :stage:wavelet-director:
+  :PROPERTIES:
+  :ID:               concept-pick
+  :ASSIGNED_AGENT:   wavelet-director
+  :ARTIFACTS_IN:     brief.md strategy.md
+  :ARTIFACTS_OUT:    strategy.md
+  :END:
+
+  Pick exactly one of the four creative concepts (Organic / Direct
+  Response / Animated / Cinematic). Decision criteria:
+  1. What concept do the brand's actual published ads live in?
+     (=brandwork brand.ads= from stage 1). Match that.
+  2. Medium-implied: talking-head → organic; paint/abstract →
+     animated; polished real-world → cinematic; hook+CTA-shaped →
+     direct response.
+  3. Don't pick by genre/brand-vertical priors.
+
+  Record the picked concept in =strategy.md= under a `Concept`
+  heading. This stage is intentionally lightweight — it's a
+  decision, not a build — but it gates the discipline-loadout
+  step the runtime performs before downstream stages.
+
+** TODO Validator: concept committed in strategy.md         :validator:
+   :PROPERTIES:
+   :KIND:      cmd_zero_exit
+   :ARG_CMD:   grep -qE "^Concept: (organic|direct-response|animated|cinematic)" strategy.md
+   :END:
+
+* TODO Stage 3 — script                        :stage:wavelet-director:
+  :PROPERTIES:
+  :ID:               script
+  :ASSIGNED_AGENT:   wavelet-director
+  :ARTIFACTS_IN:     brief.md strategy.md
+  :ARTIFACTS_OUT:    script.fountain
+  :END:
+
+  Author the Fountain screenplay. 4-6 scenes typically (more for
+  animated/kinetic-cut spots, fewer for cinematic). Pacing matches
+  the brief's MUSIC energy curve. Validated structurally AND for
+  copy-density-vs-duration before velocity sees it — too much copy
+  in too short a spot is unrecoverable downstream.
+
+  Tools: =wavelet_screenplay_parse=, =wavelet_screenplay_validate=.
+
+** TODO Validator: script.fountain exists                   :validator:
+   :PROPERTIES:
+   :KIND:      artifact_exists
+   :ARG_PATH:  script.fountain
+   :END:
+
+** TODO Validator: screenplay parses cleanly                :validator:
+   :PROPERTIES:
+   :KIND:      screenplay_parse_clean
+   :ARG_PATH:  script.fountain
+   :END:
+
+** TODO Validator: copy density fits declared duration      :validator:
+   :PROPERTIES:
+   :KIND:      screenplay_duration_fits
+   :ARG_PATH:  script.fountain
+   :END:
+
+   # GAP: KIND `screenplay_duration_fits` — wavelet-specific, registry
+   # gap. Implementation: wavelet screenplay validate --duration N
+   # computes VO time + caption dwell + shot floor against target.
+
+* TODO Stage 4 — velocity                      :stage:wavelet-director:
+  :PROPERTIES:
+  :ID:               velocity
+  :ASSIGNED_AGENT:   wavelet-director
+  :ARTIFACTS_IN:     script.fountain
+  :ARTIFACTS_OUT:    velocity.json
+  :END:
+
+  Propose a BPM curve from the screenplay. Drives cut timing in the
+  storyboard stage and validates against the music track's detected
+  BPM once asset stage produces audio. Tools: =wavelet_velocity_propose=.
+
+** TODO Validator: velocity.json exists                     :validator:
+   :PROPERTIES:
+   :KIND:      artifact_exists
+   :ARG_PATH:  velocity.json
+   :END:
+
+* TODO Stage 5 — storyboard                    :stage:wavelet-director:
+  :PROPERTIES:
+  :ID:               storyboard
+  :ASSIGNED_AGENT:   wavelet-director
+  :ARTIFACTS_IN:     script.fountain velocity.json
+  :ARTIFACTS_OUT:    storyboard.json transitions.json
+  :END:
+
+  Plan the per-shot storyboard. Runs structural verify + 180°-rule /
+  motion-vector continuity + Fountain transition classification. Must
+  reach 0 errors on every gate before proceeding. For Organic /
+  talking-head concepts, the storyboard also auto-loads character
+  refs from =refs/character/= (wb-cx08) and routes Dialogue scenes
+  through =Generation::RefConditioned=.
+
+  Tools: =wavelet_storyboard_plan=, =wavelet_storyboard_verify=,
+  =wavelet_continuity_check=, =wavelet_transitions_classify=.
+
+** TODO Validator: storyboard.json exists                   :validator:
+   :PROPERTIES:
+   :KIND:      artifact_exists
+   :ARG_PATH:  storyboard.json
+   :END:
+
+** TODO Validator: storyboard verify passes                 :validator:
+   :PROPERTIES:
+   :KIND:      storyboard_verify_passes
+   :ARG_PATH:  storyboard.json
+   :END:
+
+** TODO Validator: continuity check zero errors             :validator:
+   :PROPERTIES:
+   :KIND:      continuity_check_zero_errors
+   :ARG_PATH:  storyboard.json
+   :END:
+
+   # GAP: KIND `continuity_check_zero_errors` — wavelet-specific,
+   # registry gap. Implementation: wavelet continuity check exit 0
+   # AND zero error findings in the JSON output.
+
+* TODO Stage 6 — asset                         :stage:wavelet-director:
+  :PROPERTIES:
+  :ID:               asset
+  :ASSIGNED_AGENT:   wavelet-director
+  :ARTIFACTS_IN:     storyboard.json velocity.json
+  :ARTIFACTS_OUT:    music/track.wav shots/
+  :END:
+
+  Generate the paid assets. Three sub-paths run in parallel once
+  storyboard lands:
+  1. Music gen via =wavelet_music_gen= (Lyria 3 Pro / Lyria 3 Clip).
+  2. Dialogue TTS via =wavelet_dialogue_tts= (Kokoro / ElevenLabs).
+  3. Per-shot generation via =wavelet_shot_txt2vid= (Fal Veo 3.1 or
+     Veo 3.1 ref-to-video) — one call per shot, parallelized.
+
+  Reference stills (character + product refs) for ref-to-video
+  shots are generated by =wavelet_shot_still= (Nano Banana 3
+  default; Flux Schnell opt-in for batch variants). Cost-gated by
+  =--max-cost= per call; total spend gated by stage budget.
+
+  The =frame_judge= tool runs per-shot after generation to catch
+  failed clips before they reach compose (saves a re-roll cycle).
+
+** TODO Validator: music/track.wav exists                   :validator:
+   :PROPERTIES:
+   :KIND:      artifact_exists
+   :ARG_PATH:  music/track.wav
+   :END:
+
+** TODO Validator: total cost below stage budget            :validator:
+   :PROPERTIES:
+   :KIND:      cost_below_usd
+   :ARG_MAX:   10.0
+   :END:
+
+   # GAP: KIND `cost_below_usd` — wavelet-specific, registry gap.
+   # Implementation: sum trace JSONL cost_usd_at_cost across the run.
+
+** TODO Validator: every shot VLM-verifies                  :validator:
+   :PROPERTIES:
+   :KIND:      vlm_verify_passes_per_shot
+   :ARG_PATH:  shots/
+   :ARG_PROMPT: "Does this clip show what the storyboard scene description says?"
+   :END:
+
+   The =frame_judge= / =video_judge= tools (wb-lw3z) wrap a video-
+   capable VLM (Gemini 2.5+ today; updatable) behind this validator.
+
+* TODO Stage 7 — edit                          :stage:wavelet-director:
+  :PROPERTIES:
+  :ID:               edit
+  :ASSIGNED_AGENT:   wavelet-director
+  :ARTIFACTS_IN:     shots/ music/track.wav transitions.json
+  :ARTIFACTS_OUT:    cuts.edl
+  :END:
+
+  Assemble the rough cut. Snap shot boundaries to detected onsets
+  (the cuts.edl emitted by =wavelet_velocity_validate= when music
+  exists). Handle J/L-cuts and whip-pan transitions. Generate
+  word-level captions from VO timestamps via =wavelet_dialogue_tts=
+  alignment output if a VO track exists.
+
+** TODO Validator: cuts.edl exists                          :validator:
+   :PROPERTIES:
+   :KIND:      artifact_exists
+   :ARG_PATH:  cuts.edl
+   :END:
+
+* TODO Stage 8 — compose                       :stage:wavelet-director:
+  :PROPERTIES:
+  :ID:               compose
+  :ASSIGNED_AGENT:   wavelet-director
+  :ARTIFACTS_IN:     cuts.edl shots/ refs/
+  :ARTIFACTS_OUT:    commercial.html scenes/
+  :END:
+
+  Author per-scene HTML files in =scenes/= — full HTML/CSS freedom,
+  no template library. Each scene contains an inline =<video src=
+  "../shots/shot-N.mp4" autoplay muted playsinline>= element (NOT
+  =data-video-bg= on the top-level section — that's a hallucinated
+  attribute the renderer doesn't honor; lint rule from wb-a2z2
+  catches it). HTML overlays for text + brand wordmark + CTA layer
+  on top via absolute positioning above the video element.
+
+  Then assemble a single top-level =commercial.html= manifest
+  listing every scene + audio cue. HTML is the ONLY composition
+  input =wavelet render= accepts.
+
+** TODO Validator: commercial.html exists                   :validator:
+   :PROPERTIES:
+   :KIND:      artifact_exists
+   :ARG_PATH:  commercial.html
+   :END:
+
+** TODO Validator: comp verify passes                       :validator:
+   :PROPERTIES:
+   :KIND:      comp_verify_passes
+   :ARG_PATH:  commercial.html
+   :END:
+
+   # GAP: KIND `comp_verify_passes` — wavelet-specific, registry gap.
+   # Implementation: wavelet verify commercial.html exit 0.
+
+** TODO Validator: wavelet lint passes (with --mp4 post-render) :validator:
+   :PROPERTIES:
+   :KIND:      wavelet_lint_passes
+   :ARG_PATH:  commercial.html
+   :END:
+
+   # GAP: KIND `wavelet_lint_passes` — wavelet-specific, registry gap.
+   # Includes the hallucinated-attr check (wb-a2z2) + the halo-
+   # contrast / on-subject / baked-text-OCR rules. --mp4 mode runs
+   # AFTER render in stage 9; pre-render lint runs in this stage.
+
+* TODO Stage 9 — publish                       :stage:wavelet-director:
+  :PROPERTIES:
+  :ID:               publish
+  :ASSIGNED_AGENT:   wavelet-director
+  :ARTIFACTS_IN:     commercial.html
+  :ARTIFACTS_OUT:    commercial.mp4
+  :END:
+
+  Render the HTML manifest to MP4, mux the sidecar WAV, and sign
+  with a C2PA content-credentials manifest. Default uses the
+  bundled test cert; production delivery requires a real ES256
+  cert chain. EU AI Act Article 50 enforcement begins Aug 2026.
+
+  Tools: =wavelet_render=, =wavelet_lint --mp4= (post-render pass),
+  =video_judge= (final rubric grade against the brief's success
+  criteria), =c2pa sign=, =c2pa verify=.
+
+** TODO Validator: commercial.mp4 exists                    :validator:
+   :PROPERTIES:
+   :KIND:      artifact_exists
+   :ARG_PATH:  commercial.mp4
+   :END:
+
+** TODO Validator: lint --mp4 passes                        :validator:
+   :PROPERTIES:
+   :KIND:      wavelet_lint_passes
+   :ARG_PATH:  commercial.html
+   :ARG_MP4:   commercial.mp4
+   :END:
+
+** TODO Validator: C2PA manifest signed + verifies          :validator:
+   :PROPERTIES:
+   :KIND:      c2pa_verify_passes
+   :ARG_PATH:  commercial.mp4
+   :END:
+
+** TODO Validator: final video judge rubric passes          :validator:
+   :PROPERTIES:
+   :KIND:      vlm_verify_passes_per_shot
+   :ARG_PATH:  commercial.mp4
+   :ARG_PROMPT: "Score against the brief's 8-dim rubric. Threshold ≥ 0.75."
+   :END:
+
+* Open questions surfaced by this plan dry-run
+
+  Meta-notes for follow-up wb-nlln sub-issues. Not part of the plan.
+
+** Wavelet-specific validator KINDs missing from w.org registry
+   The Validator KIND registry in w.org currently lists 6 kinds.
+   Wavelet needs 7 additional kinds:
+   - =brief_check_passes= (wavelet brief check exit 0)
+   - =brandwork_research_done= (trace-based check, impl exists)
+   - =screenplay_duration_fits= (wavelet screenplay validate exit 0)
+   - =continuity_check_zero_errors= (zero findings in JSON output)
+   - =cost_below_usd= (sum trace cost vs =:ARG_MAX:=)
+   - =comp_verify_passes= (wavelet verify exit 0)
+   - =wavelet_lint_passes= (wavelet lint exit 0, optionally --mp4)
+   File a sub-issue: "wb-nlln: extend w.org Validator KIND registry
+   with wavelet-specific kinds (brief_check_passes,
+   brandwork_research_done, screenplay_duration_fits,
+   continuity_check_zero_errors, cost_below_usd, comp_verify_passes,
+   wavelet_lint_passes)".
+
+** Plan-variant per concept
+   Once concept-pick dispatch lands (wb-q4dk conditional sub-tree
+   loading), the runtime can select between =wavelet-commercial.org=
+   (this file — general default), =wavelet-ugc.org= (organic-
+   register variant with character-define + 9:16 selfie defaults),
+   and =wavelet-motion-graphics.org= (animated-register variant
+   with no character refs but text-in-Veo gen). Multiple plans
+   share the same agent file.
+
+** Per-stage parallelism
+   Stage 6 (asset) has three sub-paths that should fan out
+   concurrently (music, dialogue, shots). Stages 3-5 (script,
+   velocity, storyboard) could also overlap with the start of
+   research if the brief is already known. Today this org file
+   encodes sequential execution by document order; explicit
+   parallel-branch semantics need wb-lrul (parallel task scheduling)
+   to land before the runtime can exploit them.
+
+** Concept-pick gating
+   Stage 2 (concept-pick) writes the picked concept to =strategy.md=
+   but the runtime doesn't read it back to switch downstream stage
+   behavior. That dispatch logic is wb-q4dk's job. Until it lands,
+   the agent still picks the concept and self-disciplines per the
+   SKILL.md guidance — the worktree just doesn't auto-load a
+   concept-specific sub-tree.

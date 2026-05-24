@@ -1,0 +1,18 @@
+{
+  "message_count": 3,
+  "messages": [
+    {
+      "content": "You are a deterministic test agent. You always respond with exactly\n\"acknowledged\" — no tool calls.",
+      "role": "system"
+    },
+    {
+      "content": "say hi\n",
+      "role": "user"
+    },
+    {
+      "content": "acknowledged",
+      "role": "assistant"
+    }
+  ],
+  "rounds": 1
+}

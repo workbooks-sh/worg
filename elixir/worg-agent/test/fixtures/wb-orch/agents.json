@@ -1,0 +1,21 @@
+{
+  "version": 1,
+  "agents": [
+    {
+      "id": "workhorse",
+      "name": "Workhorse",
+      "type": "ai",
+      "status": "active",
+      "capabilities": [
+        "bash",
+        "read",
+        "write",
+        "lua-eval",
+        "js-eval",
+        "git",
+        "worg",
+        "network"
+      ]
+    }
+  ]
+}

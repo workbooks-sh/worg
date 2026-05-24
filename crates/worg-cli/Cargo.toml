@@ -14,7 +14,10 @@ path = "src/main.rs"
 worg-parse = { path = "../worg-parse" }
 worg-query = { path = "../worg-query" }
 worg-lint  = { path = "../worg-lint" }
+worg-orch  = { path = "../worg-orch" }
 orgize = { workspace = true }
 clap = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
 anyhow = { workspace = true }
+time = { workspace = true }

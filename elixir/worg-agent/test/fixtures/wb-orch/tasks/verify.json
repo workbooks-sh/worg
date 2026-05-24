@@ -1,0 +1,13 @@
+{
+  "id": "verify",
+  "title": "verify",
+  "state": "backlog",
+  "created_by": "worg-exporter",
+  "created_at": "2026-05-23T20:00:00Z",
+  "description": "Contract and security probes both run against the deployed Fly\n   app. Both must pass; either failing reverts the commit and marks\n   the issue blocked.",
+  "parent": "autoloop-iteration",
+  "tags": [
+    "stage",
+    "sandboxed"
+  ]
+}

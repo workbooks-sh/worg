@@ -1,0 +1,18 @@
+[package]
+name = "worg-orch"
+description = "Wire-format types matching the Workbooks Orchestrator Protocol's `.wb-orch/` JSON. Used by worg's `orch export` / `orch import` subcommands to bridge org-mode files to the orchestrator's on-disk state without depending on the orchestrator-core crate."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+serde = { workspace = true }
+serde_json = { workspace = true }
+time = { workspace = true }
+
+# org → JSON walkers (wb-nlln.5, wb-nlln.8) need to read property
+# drawers, tags, and subtree text from parsed org files.
+worg-parse = { path = "../worg-parse" }
+worg-query = { path = "../worg-query" }
+orgize = { workspace = true }

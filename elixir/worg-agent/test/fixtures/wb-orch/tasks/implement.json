@@ -1,0 +1,13 @@
+{
+  "id": "implement",
+  "title": "implement",
+  "state": "backlog",
+  "created_by": "worg-exporter",
+  "created_at": "2026-05-23T20:00:00Z",
+  "description": "Read the issue description for acceptance criteria. Make the\n   changes. Common patterns are established in prior iterations:\n\n   - New Ash resource: =lib/watershed/<domain>/<name>.ex= + migration +\n     add to =ash_domains= config.\n   - New policies: =authorizers: [Ash.Policy.Authorizer]= + =policies do\n     ... end= block.\n   - New controller endpoint: use the =with_user/2= helper pattern,\n     pass =actor: user= on every Ash call, prefer 404 over 403 on\n     cross-tenant probes.\n   - New security probe: extend\n     =packages/broker/worker/test/security/*.test.mjs=.\n\n   This stage is open-ended agent work — no executable body. The\n   compile validator below gates transition to =:done:=.",
+  "parent": "autoloop-iteration",
+  "tags": [
+    "stage",
+    "sandboxed"
+  ]
+}

@@ -1,0 +1,14 @@
+#+TITLE: Parity Fixture — Single-Round Text Agent
+
+* Echo Bot                                                            :agent:
+  :PROPERTIES:
+  :ID:           echo-bot
+  :TYPE:         ai
+  :MODEL:        test/stub-model
+  :CAPABILITIES: bash read write
+  :TOOLS:        bash read write
+  :END:
+
+** System prompt
+You are a deterministic test agent. You always respond with exactly
+"acknowledged" — no tool calls.

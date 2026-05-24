@@ -28,9 +28,9 @@ pub enum Predicate {
     Property { key: String, value: String },
     /// Match if the headline has any (non-empty) value for this property key.
     HasProperty { key: String },
-    /// Match if this headline's `:DEPENDS_ON:` references all resolve to
+    /// Match if this headline's `:BLOCKER:` references all resolve to
     /// headlines whose state is in `DONE` or `ABANDONED` — i.e. the headline
-    /// is unblocked. A headline with no `:DEPENDS_ON:` is always ready.
+    /// is unblocked. A headline with no `:BLOCKER:` is always ready.
     Ready,
     /// Match if the headline's `:ASSIGNED_AGENT:` property equals this slug.
     /// Sugar for `Property { key: "ASSIGNED_AGENT", value: slug }`.
@@ -75,6 +75,19 @@ pub fn query(doc: &Document, predicate: &Predicate) -> Vec<Headline> {
 /// Collect tags for a headline, including inherited tags from ancestor
 /// headlines (org-mode tag inheritance semantics).
 pub fn headline_tags(hl: &Headline) -> Vec<String> {
+    headline_tags_with_exclusions(hl, &[])
+}
+
+/// Same as [`headline_tags`] but skips ancestor tags that are in the
+/// `exclude` list. The headline's OWN tags are always included
+/// regardless of the exclusion list — author intent on the current
+/// headline wins; inheritance is just convenient propagation.
+///
+/// Mirrors Emacs org-mode's `org-tags-exclude-from-inheritance`. The
+/// walker layers a default exclusion list on top of this (classification
+/// tags + status tags don't inherit) plus any `#+TAG_EXCLUDE_INHERIT:`
+/// keyword the author declares.
+pub fn headline_tags_with_exclusions(hl: &Headline, exclude: &[&str]) -> Vec<String> {
     let mut out: Vec<String> = hl.tags().map(|t| t.to_string()).collect();
 
     // Walk up the syntax tree collecting parent headlines' tags.
@@ -84,6 +97,9 @@ pub fn headline_tags(hl: &Headline) -> Vec<String> {
         if let Some(parent_hl) = Headline::cast(n.clone()) {
             for t in parent_hl.tags() {
                 let s = t.to_string();
+                if exclude.contains(&s.as_str()) {
+                    continue;
+                }
                 if !out.contains(&s) {
                     out.push(s);
                 }
@@ -103,9 +119,9 @@ fn headline_property(hl: &Headline, key: &str) -> Option<String> {
         .map(|(_, v)| v.to_string())
 }
 
-/// Parse a `:DEPENDS_ON:` property value into a list of headline IDs.
+/// Parse a `:BLOCKER:` property value into a list of headline IDs.
 /// Accepts both bare ids (`task-1 task-2`) and `[[id:task-1]] [[id:task-2]]`.
-pub fn parse_depends_on(value: &str) -> Vec<String> {
+pub fn parse_blocker(value: &str) -> Vec<String> {
     let mut out = Vec::new();
     for token in value.split_whitespace() {
         if let Some(rest) = token.strip_prefix("[[id:") {
@@ -122,9 +138,9 @@ pub fn parse_depends_on(value: &str) -> Vec<String> {
 }
 
 fn is_ready(doc: &Document, hl: &Headline) -> bool {
-    let deps = match headline_property(hl, "DEPENDS_ON") {
+    let deps = match headline_property(hl, "BLOCKER") {
         None => return true, // no deps → always ready
-        Some(v) => parse_depends_on(&v),
+        Some(v) => parse_blocker(&v),
     };
     deps.iter().all(|id| {
         match doc.find_by_id(id) {
@@ -159,13 +175,13 @@ mod tests {
 :PROPERTIES:
 :ID: stage-2
 :ASSIGNED_AGENT: gamut-director
-:DEPENDS_ON: [[id:stage-1]]
+:BLOCKER: [[id:stage-1]]
 :END:
 
 * TODO Stage 3 :stage:
 :PROPERTIES:
 :ID: stage-3
-:DEPENDS_ON: [[id:stage-2]]
+:BLOCKER: [[id:stage-2]]
 :END:
 
 ** TODO Validator: artifact_exists :validator:
@@ -253,12 +269,12 @@ mod tests {
     }
 
     #[test]
-    fn parse_depends_on_handles_both_forms() {
-        assert_eq!(parse_depends_on("a b"), vec!["a", "b"]);
+    fn parse_blocker_handles_both_forms() {
+        assert_eq!(parse_blocker("a b"), vec!["a", "b"]);
         assert_eq!(
-            parse_depends_on("[[id:a]] [[id:b]]"),
+            parse_blocker("[[id:a]] [[id:b]]"),
             vec!["a", "b"]
         );
-        assert_eq!(parse_depends_on("a [[id:b]] c"), vec!["a", "b", "c"]);
+        assert_eq!(parse_blocker("a [[id:b]] c"), vec!["a", "b", "c"]);
     }
 }

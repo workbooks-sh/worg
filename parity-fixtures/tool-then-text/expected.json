@@ -1,0 +1,37 @@
+{
+  "message_count": 5,
+  "messages": [
+    {
+      "content": "You are a deterministic test agent. When asked for the time you call\nthe `bash` tool with `date -u`, then summarize the result.",
+      "role": "system"
+    },
+    {
+      "content": "what time is it?\n",
+      "role": "user"
+    },
+    {
+      "role": "assistant",
+      "tool_calls": [
+        {
+          "function": {
+            "arguments": "{\"command\":\"echo 2026-05-24T18:00:00Z\"}",
+            "name": "bash"
+          },
+          "id": "call_parity_1",
+          "type": "function"
+        }
+      ]
+    },
+    {
+      "content": "exit: 0\n--- stdout ---\n2026-05-24T18:00:00Z\n--- stderr ---\n",
+      "name": "bash",
+      "role": "tool",
+      "tool_call_id": "call_parity_1"
+    },
+    {
+      "content": "The current time is 2026-05-24T18:00:00Z.",
+      "role": "assistant"
+    }
+  ],
+  "rounds": 2
+}

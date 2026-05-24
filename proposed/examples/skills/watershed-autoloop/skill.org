@@ -1,0 +1,207 @@
+#+TITLE: Watershed autoloop
+#+VERSION: 1
+#+GLOSSARY: ../../../../w.org
+#+CATEGORY: skill
+#+DESCRIPTION: Autonomous iteration on the Watershed epic (bd id wb-6irl). Pulls the next ready bd issue, implements it, verifies via contract + security suites, commits and pushes, closes the issue. Refuses to push if tests fail. Designed to run on /loop 2m for unattended overnight work.
+
+The autoloop performs one iteration of Watershed epic work per invocation.
+Designed to run on =/loop 2m=. Each tick: pick a ready bd issue,
+implement, verify, commit, push, close, exit. The loop ticks again two
+minutes later. This file describes a single iteration; the loop
+mechanism itself lives elsewhere.
+
+* When to use
+
+User invokes "watershed-autoloop" or asks to "keep working on watershed".
+The skill loader matches the user's request against this section.
+
+* Rules
+
+Invariants the iteration MUST hold. Violation = abort and report.
+
+1. Never push with failing tests. Stash, mark blocked, exit.
+2. Never deploy if =mix compile= fails.
+3. Refuse user-blocked work. Issues needing R2 creds, DNS access, LLM
+   API keys, or domain verification are closed as deferred.
+4. One commit per iteration. No bundling.
+5. If =git status= shows uncommitted watershed-scoped changes you didn't
+   make, stop.
+6. If you've done >12 deploys in this conversation, skip deploys and
+   annotate the bd issue with "needs deploy". User batches later.
+
+* Iteration                                                  :stage:sandboxed:
+  :PROPERTIES:
+  :ID:             autoloop-iteration
+  :ASSIGNED_AGENT: workhorse
+  :ORDERED:        t
+  :BUDGET:         tokens=200000 cost_usd=2.00 wallclock=600s
+  :RETRY_POLICY:   max=3 backoff=fixed fallback=mark_blocked
+  :END:
+
+** orient                                                            :stage:
+   :PROPERTIES:
+   :ID: orient
+   :END:
+
+   Pre-flight: scoped working tree must be clean. Other repo
+   dirtiness (wavelet evals, beads journal, wavelet-cache) is
+   expected from unrelated background work and is acceptable.
+
+*** clean working tree                                          :validator:
+    :PROPERTIES:
+    :KIND:    cmd_zero_exit
+    :ARG_CMD: test -z "$(git status --short apps/watershed packages/broker/worker/test/security)"
+    :END:
+
+** pick issue                                                        :stage:
+   :PROPERTIES:
+   :ID:         pick-issue
+   :END:
+
+   Choose the first ready issue under epic wb-6irl that:
+   - has no open dependencies
+   - doesn't need user input (R2/DNS/LLM keys, domain verification)
+   - needs <200 LOC of changes
+   - doesn't touch the auth pipeline
+
+   If nothing matches, report "no autonomous-safe work ready; epic
+   blocked on user inputs" and exit. The loop will tick again later.
+
+   #+begin_src shell :name pick-issue-id :results value :tangle no
+   bd list --parent wb-6irl --status open --priority 1 --json |
+     jq -r '.[] | select(.blockers == [] and .needs_user_input != true) | .id' |
+     head -1
+   #+end_src
+
+** claim issue                                                       :stage:
+   :PROPERTIES:
+   :ID:         claim-issue
+   :END:
+
+   #+begin_src shell :var ISSUE=pick-issue-id :results output :tangle no
+   bd update "$ISSUE" --status in_progress
+   #+end_src
+
+** implement                                                         :stage:
+   :PROPERTIES:
+   :ID:         implement
+   :END:
+
+   Read the issue description for acceptance criteria. Make the
+   changes. Common patterns are established in prior iterations:
+
+   - New Ash resource: =lib/watershed/<domain>/<name>.ex= + migration +
+     add to =ash_domains= config.
+   - New policies: =authorizers: [Ash.Policy.Authorizer]= + =policies do
+     ... end= block.
+   - New controller endpoint: use the =with_user/2= helper pattern,
+     pass =actor: user= on every Ash call, prefer 404 over 403 on
+     cross-tenant probes.
+   - New security probe: extend
+     =packages/broker/worker/test/security/*.test.mjs=.
+
+   This stage is open-ended agent work — no executable body. The
+   compile validator below gates transition to =:done:=.
+
+*** compile passes                                              :validator:
+    :PROPERTIES:
+    :KIND:    cmd_zero_exit
+    :ARG_CMD: cd apps/watershed && mix compile
+    :END:
+
+** deploy                                                            :stage:
+   :PROPERTIES:
+   :ID:         deploy
+   :TIMEOUT_MS: 600000
+   :END:
+
+   Fly app config is at =apps/watershed/fly.toml=. Never deploy from
+   the repo root — no Dockerfile there.
+
+   #+begin_src shell :results output :tangle no
+   cd /Users/shinyobjectz/Apps/workbooks/apps/watershed && fly deploy --remote-only
+   #+end_src
+
+** verify                                                            :stage:
+   :PROPERTIES:
+   :ID:         verify
+   :END:
+
+   Contract and security probes both run against the deployed Fly
+   app. Both must pass; either failing reverts the commit and marks
+   the issue blocked.
+
+*** contract tests pass                                         :validator:
+    :PROPERTIES:
+    :KIND:    cmd_zero_exit
+    :ARG_CMD: cd packages/broker/worker && BROKER=https://wb-watershed.fly.dev node --test "test/contract/**/*.test.mjs"
+    :END:
+
+*** security tests pass                                         :validator:
+    :PROPERTIES:
+    :KIND:    cmd_zero_exit
+    :ARG_CMD: cd packages/broker/worker && BROKER=https://wb-watershed.fly.dev node --test "test/security/*.test.mjs"
+    :END:
+
+** commit and push                                                   :stage:
+   :PROPERTIES:
+   :ID:         commit-push
+   :END:
+
+   #+begin_src shell :var ISSUE=pick-issue-id :results output :tangle no
+   cd /Users/shinyobjectz/Apps/workbooks
+   git add apps/watershed packages/broker/worker/test/security
+   git commit -m "watershed: <one-line summary>
+
+   <body referencing $ISSUE and test deltas>
+
+   Closes $ISSUE."
+   git push origin main
+   #+end_src
+
+** close issue                                                       :stage:
+   :PROPERTIES:
+   :ID:         close-issue
+   :END:
+
+   #+begin_src shell :var ISSUE=pick-issue-id :results output :tangle no
+   bd close "$ISSUE" --reason "Wired and verified end-to-end. Contract + security suites passed."
+   #+end_src
+
+* Failure modes
+
+| Symptom                                       | Response                                                |
+|-----------------------------------------------+---------------------------------------------------------|
+| =git status= dirty before you start           | Stop. Report. Don't continue.                           |
+| =mix compile= fails                           | Fix or revert. Two failed attempts = mark blocked.      |
+| Deploy succeeds but tests regress             | =git revert HEAD --no-edit=, mark blocked, push revert. |
+| =bd ready= is empty                           | Report "epic complete (autonomous portion)". Done.      |
+| Same issue fails 3 ticks in a row             | Mark blocked with reason; loop skips next pass.         |
+| Two policies conflict, app won't boot         | Roll back immediately. Revert + deploy. Mark blocked.   |
+
+* Prohibitions
+
+The iteration may NOT:
+
+- Bypass tests with =--no-verify= or =authorize?: false= on user data paths.
+- Modify CLAUDE.md, mix.exs deps, =~/.claude/=, or fly secrets.
+- Delete or rename existing endpoints — only ADD new ones or replace
+  stubs in place.
+- Bypass policies on resources that already have them.
+- Touch the AshAuthentication flow without explicit user instruction.
+- Run =fly secrets set= — requires user authorization.
+- Make git operations beyond: add (specific paths), commit, push origin
+  main, revert HEAD --no-edit.
+- Force-push, =reset --hard=, or anything destructive.
+- Touch packages other than watershed-related (orchestrator-core,
+  wavelet, workbench, etc.).
+
+* Definition of done
+
+Epic-complete exit condition:
+- =bd list --parent wb-6irl --status open= is empty.
+- =bd list --parent wb-6irl --status in_progress= is empty.
+- No deferred items are auto-resumable.
+
+At that point: "Watershed epic complete to the autonomous boundary.
+Deferred items: <list>. Awaiting user input."

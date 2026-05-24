@@ -39,7 +39,10 @@ defmodule Worg.MixProject do
       # Rust NIF for parse / mutate / query / lint.
       {:rustler, "~> 0.36.0"},
       # Sandboxed Lua executor (Worg.Exec.lua/2). On BEAM, no subprocess.
-      {:luerl, "~> 1.4"}
+      {:luerl, "~> 1.4"},
+      # JSON for Worg.query/2 — encodes predicate maps before handing
+      # them to Parser.query_json/2 and decodes the result back to maps.
+      {:jason, "~> 1.4"}
     ]
   end
 

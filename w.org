@@ -1,0 +1,408 @@
+#+TITLE: WORG runtime — Workbooks
+#+VERSION: 1
+#+AUTHOR: workbooks-sh
+
+This file defines the WORG runtime for the Workbooks monorepo. It is
+itself a canonical org-mode file, parsed by the same parser that reads
+every other =.org= file in the project.
+
+Projects extend this by adding =#+GLOSSARY: ./w.local.org= to specific
+files, or by replacing this file entirely for a different agent
+architecture. The runtime resolves names against the merged glossary;
+conflicts error unless an explicit override is declared.
+
+* Status                                                              :enum:
+  Exactly one of these tags is required on any headline the runtime
+  executes (those carrying a =:tool:= or =:stage:= or =:validator:=
+  classification, or any headline with an executable source block).
+
+** pending
+   Not yet picked up by an executor. Default state for newly created work.
+
+** active
+   Currently running. The runtime sets this on dispatch.
+
+** done
+   Completed; every child =:validator:= (if any) is also =:done:=.
+
+** failed
+   Terminal failure past the retry policy. See =:LOGBOOK:= for attempts.
+
+** abandoned
+   Closed without completion — budget exhausted, cancelled, superseded.
+
+* Classification                                                     :class:
+  Tags that say what kind of headline this is. A headline carries at
+  most one classification tag from this group. Untagged headlines are
+  prose / structure / containers and are not executed.
+
+** stage
+   A logical group of work. May contain =:tool:= and =:validator:= children.
+   Transitions to =:done:= only when all =:validator:= children are =:done:=.
+
+   A stage may have no executable body — representing open-ended agent
+   work whose completion is gated entirely by its =:validator:= children.
+
+** tool
+   A single tool invocation. Requires a =:TOOL:= property naming the tool.
+   Body holds the invocation (a source block, typically =shell=, plus an
+   optional adjacent JSON args block named =<tool>-args=).
+
+** validator
+   A success criterion. Requires a =:KIND:= property from the registry below.
+   Gates the parent stage's transition to =:done:=.
+
+** input
+   Source data — a brief, dataset, screenplay, fixture. Not executable.
+
+** review
+   Section requires human attention. Surfaced in the worg viewer.
+
+** agent
+   This file (or this level-1 headline) defines an agent. Requires
+   =:ID:= and =:TYPE:= properties; typically carries =:MODEL:=,
+   =:CAPABILITIES:=, =:TOOLS:=, and a =** System prompt= subtree.
+
+   The agent body is not executed by the runtime — it's a declaration
+   consumed by =worg orch export agents= (which emits
+   =.wb-orch/agents.json=) and by the BEAM agent dispatcher.
+   Children may carry any classification — typically prose subtrees
+   documenting scope, conventions, and skill expectations. Validators
+   under an :agent: parent gate registration, not execution.
+
+* Trust                                                               :enum:
+  Required on any headline with an executable source block. Determines
+  which executor and which sandbox the runtime uses.
+
+  Inherited from ancestors via org's tag inheritance. Setting once on a
+  top-level stage cascades to all executable descendants — descendants
+  may still override.
+
+** sandboxed
+   Lua runs in Luerl. Shell runs in a restricted Port with a clean env.
+   Default for any new work.
+
+** full
+   No restrictions. Required for =elixir= source blocks. Use only when
+   the work is reviewing-or-modifying-the-runtime itself.
+
+* Properties                                                          :prop:
+  Properties carry payload data (numbers, slugs, paths, structured
+  values). Names are uppercase. Unknown uppercase properties are
+  warned by =worg lint= as drift candidates — extend by adding entries
+  here, not by inventing in-place.
+
+** ID
+   Stable headline identifier. Required for any headline referenced
+   by =[[id:]]= or =:BLOCKER:=. Format: a slug or UUID.
+
+** BLOCKER
+   Whitespace-separated =[[id:...]]= links. Hard cross-tree dependency
+   matching org-edna's =:BLOCKER:= property convention. Headline stays
+   =:pending:= until every referent is =:done:= or =:abandoned:=.
+
+** ORDERED
+   Truthy value (=t=, =true=, =yes=, =1=) marks this headline's task
+   children as needing to transition to =:done:= in outline order.
+   Org-mode core property. Replaces N-1 explicit =:BLOCKER:= lines
+   with a single declaration on the parent. The walker injects
+   synthetic =:BLOCKER:= edges between siblings; the wire JSON shows
+   the same dep graph either way.
+
+** BUDGET
+   Format: =tokens=N cost_usd=N.N wallclock=Ns=. Upper bound, enforced
+   by the runtime. Inherited from ancestor headlines unless overridden.
+
+** TIMEOUT_MS
+   Wall-clock timeout for the executor on this headline. Default: none.
+
+** COST_USD
+   Actual cost incurred. Written by the executor on completion.
+
+** RETRY_POLICY
+   Format: =max=N backoff=fixed|exponential fallback=<keyword>=. Each
+   attempt appends to the headline's =:LOGBOOK:=; no sibling headlines
+   are created.
+
+** TOOL
+   Tool slug. Lowercase, dots and underscores allowed (e.g.
+   =gamut.dialogue.tts=). Required on =:tool:= headlines.
+
+** KIND
+   Validator kind. Required on =:validator:= headlines. Must appear
+   in the registry below.
+
+** ARTIFACT
+   A =file:= link to one artifact this headline produced. Multiple
+   =:ARTIFACT:= lines permitted.
+
+** ARTIFACTS_IN
+   Whitespace-separated paths consumed by this headline.
+
+** ARTIFACTS_OUT
+   Whitespace-separated paths produced by this headline.
+
+** ASSIGNED_AGENT
+   Agent slug. Hyphens permitted (this is a property, not a tag).
+
+** RUN_ID
+   Cross-reference into the Workbooks Orchestrator Protocol run table.
+
+** DERIVED
+   =t= if this headline's body is regenerated by the runtime on every
+   parent update. Hand edits will be overwritten. =worg lint= warns
+   when a non-DERIVED section is modified between idempotent writes.
+
+** SLOT
+   On a plugin-registry headline: which org extension slot the plugin
+   fills (=dynamic-block-writer=, =babel-language=, =link-resolver=,
+   =validator-kind=). Must match the plugin manifest's =#+SLOT:=.
+
+** MANIFEST
+   On a plugin-registry headline: path to the plugin's =manifest.org=,
+   resolved relative to this file. The linter checks the file exists.
+
+** TYPE
+   On an :agent: headline: =ai= or =human=. Mirrors orchestrator-core's
+   =AgentType= enum so =worg orch export agents= can map directly to the
+   JSON =type= field.
+
+** MODEL
+   On an :agent: headline: the LLM model slug as
+   =provider/model-name=. Example: =openrouter/xiaomi/mimo-v2.5-pro=.
+   Single property by design — keeps the orchestrator-core wire
+   mapping clean (provider/model is application-layer metadata above
+   the protocol, not a protocol field). Consumers that need provider
+   and model separately split on the first =/=.
+
+** CAPABILITIES
+   On an :agent: headline: whitespace-separated capability slugs the
+   agent declares. Lowercase, hyphens permitted (e.g. =bash read write
+   lua-eval js-eval git worg network=). Coarse-grained tags the
+   orchestrator uses for task-to-agent matching. Distinct from
+   =:TOOLS:= — capabilities are gates, tools are the concrete function
+   catalog.
+
+** TOOLS
+   On an :agent: headline: whitespace-separated tool function names
+   the agent can invoke (e.g. =bash read write lua_eval substrate_push
+   worg_parse worg_query worg_mutate=). The agent-level catalog,
+   distinct from stage-level =:TOOLS_AVAILABLE:= which scopes what
+   tools a specific :stage: may call. Underscores permitted (tool
+   names follow function-naming conventions, not capability slugs).
+
+* Validator KIND registry                                  :registry:kind:
+  The set of validator implementations the runtime knows. New kinds
+  ship as plugin manifests (see plugin registry below) and are listed
+  here for discoverability.
+
+** artifact_exists
+   Args: =:ARG_PATH:=. Passes if the file at PATH exists and is non-empty.
+
+** cmd_zero_exit
+   Args: =:ARG_CMD:=. Passes if the shell command returns exit code 0.
+
+** screenplay_parse_clean
+   Args: =:ARG_PATH:=. Passes if the fountain file parses without errors.
+
+** storyboard_verify_passes
+   Args: =:ARG_PATH:=. Passes if the storyboard JSON validates against schema.
+
+** c2pa_verify_passes
+   Args: =:ARG_PATH:=. Passes if the C2PA manifest is intact and signed.
+
+** vlm_verify_passes_per_shot
+   Args: =:ARG_PATH=:, =:ARG_PROMPT:=. Passes if VLM check returns OK
+   for every shot in the rendered video.
+
+** brief_check_passes
+   Args: =:ARG_PATH:=. Passes if =wavelet brief check <PATH>= exits 0
+   (brief content validates against the wavelet brief schema +
+   non-empty research / brand-trace prerequisites).
+
+** brandwork_research_done
+   Args: =:ARG_TRACE:=. Passes if the brandwork research trace at
+   TRACE contains the required verb set (canonical-domain resolved,
+   logo / motion / palette artifacts captured) per the wavelet
+   research playbook. Implementation lives in
+   =packages/wavelet/src/agent/plan/validators/trace.rs=.
+
+** screenplay_duration_fits
+   Args: =:ARG_PATH:=, =:ARG_TARGET_SECONDS:=. Passes if
+   =wavelet screenplay validate <PATH>= exits 0 AND the parsed
+   duration is within the per-stage tolerance of TARGET_SECONDS.
+
+** continuity_check_zero_errors
+   Args: =:ARG_PATH:=. Passes if =wavelet continuity check <PATH>=
+   emits a JSON report with zero findings. Used between storyboard
+   and asset stages to catch shot-to-shot continuity drift before
+   spending generation credits.
+
+** cost_below_usd
+   Args: =:ARG_TRACE:=, =:ARG_MAX:=. Passes if the sum of
+   =cost_usd_at_cost= entries across the run's trace JSONL is
+   below MAX. Gates expensive generation stages; pairs with the
+   wavelet budget enforcement in the director loop.
+
+** comp_verify_passes
+   Args: =:ARG_PATH:=. Passes if =wavelet verify <PATH>= exits 0
+   (final cut linted against artifact integrity rules — codec /
+   container / audio sync / C2PA manifest presence).
+
+** wavelet_lint_passes
+   Args: =:ARG_PATH:=, optionally =:ARG_MP4:= to point at the
+   rendered output. Passes if =wavelet lint= exits 0 against the
+   project + (when MP4 set) the rendered artifact.
+
+* Plugin registry                                       :registry:plugin:
+  Plugins fill org-mode's extension slots: dynamic block writers,
+  babel language executors, link resolvers. Each plugin ships its
+  own =manifest.org= (canonical org file) co-located with its code.
+  This registry lists the plugins active in the runtime; the
+  manifest is the source of truth for how to use them.
+
+  =:SLOT:= and =:MANIFEST:= are validated at glossary-load time:
+  the linter checks the manifest file exists (E006) and that its
+  =#+SLOT:= matches what's claimed here (W011).
+
+** mcp-federate
+   :PROPERTIES:
+   :SLOT:     dynamic-block-writer
+   :MANIFEST: examples/plugins/mcp-federate/manifest.org
+   :END:
+
+   Federates a query across multiple MCP servers and joins responses
+   into a single table.
+
+** worg-dashboard
+   :PROPERTIES:
+   :SLOT:     dynamic-block-writer
+   :MANIFEST: examples/plugins/worg-dashboard/manifest.org
+   :END:
+
+   Renders pass/fail/flake stats from a file's =:LOGBOOK:= history
+   back into the file.
+
+* Plugin slot registry                                       :registry:slot:
+  The set of org extension slots a plugin can fill. A plugin's
+  =:SLOT:= property must be one of these names; =worg lint= emits
+  W012 if not. Adding a new slot here makes it legal for plugins to
+  declare. Removing one fails any plugin that still claims it.
+
+** dynamic-block-writer
+   Implements a custom =#+BEGIN: <name>= dynamic block. The plugin
+   regenerates the block's body when =worg dblock-update= runs on a
+   file referencing it.
+
+** babel-language
+   Registers a new source-block language for the dispatch table —
+   adds an executor for =#+begin_src <lang>= with =:results=.
+
+** link-resolver
+   Handles a custom org link prefix (e.g. =[[github:issue:123]]=).
+   The plugin resolves the link's path component to a target URL
+   or document fragment.
+
+** validator-kind
+   Registers a new value the linter accepts in =:KIND:= on
+   =:validator:= headlines, plus the runtime check that determines
+   pass/fail.
+
+* Source block dispatch                                      :registry:lang:
+  Source block languages the runtime executes. Adding a language
+  means registering an executor (a plugin filling the babel-language
+  slot). Unsupported languages with =:results= raise =E004=.
+
+** shell
+   Executor: Elixir =Port=. Trust: =:sandboxed:= or =:full:= required.
+
+** bash
+   Alias for =shell=.
+
+** lua
+   Executor: Luerl on BEAM. Trust: always sandboxed by construction.
+
+** elixir
+   Executor: =Code.eval_string/3= in a supervised Task. Trust:
+   =:full:= required.
+
+** json
+   Not executed. Used for tool args blocks named =<tool>-args=.
+
+* File-level keywords                                       :registry:keyword:
+  Keywords the runtime reads from any worg file.
+
+** #+TITLE:
+** #+AUTHOR:
+** #+CATEGORY:
+   Free-form classification of this file (e.g. =skill=, =plan=, =agent=).
+** #+DESCRIPTION:
+   One-paragraph summary of what this file defines. Used by skill loaders
+   and human readers as the headline summary.
+** #+VERSION:
+   Integer version of the file's content schema. Bumped when the file's
+   author has made breaking changes downstream readers should know about.
+** #+TODO:
+   Custom keyword set per file. The runtime maps these to the status
+   enum above by name match (case-insensitive). Files without a
+   =#+TODO:= use canonical org TODO/DONE which map to =:pending:= / =:done:=.
+
+** #+PROPERTY:
+   File-wide babel header-arg defaults.
+
+** #+GLOSSARY:
+   Whitespace-separated paths to additional glossary files. Merged
+   with the project default in order. Cycle-safe — re-including a
+   file the loader has already seen is a no-op. Conflicts raise
+   =E005= unless the merging file explicitly overrides with
+   =#+OVERRIDE:=.
+
+** #+EXTENSIONS:
+   Inline whitespace-separated property names to allow without a full
+   glossary file. Quick escape hatch — for more than a few, prefer
+   pointing at a glossary file via =#+GLOSSARY:=.
+
+** #+OVERRIDE:
+   Property names whose definitions in a later-merged glossary
+   supersede earlier ones. Use sparingly.
+
+* Lint rules                                                       :lint:
+  Codes the runtime emits when validating a file against this vocab.
+
+| Code | Severity | Rule                                                   |
+|------+----------+--------------------------------------------------------|
+| W001 | warn     | Unknown uppercase property — possible drift            |
+| W002 | warn     | =:BLOCKER:= pointing at missing =:ID:=                 |
+| W003 | warn     | Source block with =:results= but no trust tag          |
+| W004 | warn     | Non-=:DERIVED:= section modified between runs          |
+| W006 | warn     | Validator headline missing =:KIND:=                    |
+| W007 | warn     | =:BUDGET:= exceeded by sum of descendant =:COST_USD:=  |
+| W008 | warn     | Status tag missing on executable headline              |
+| W009 | warn     | Multiple status tags on one headline (must be exactly one) |
+| W010 | warn     | Validator =:KIND:= value not in the registered KIND set |
+| W011 | warn     | Plugin registry =:SLOT:= differs from manifest's =#+SLOT:= |
+| W012 | warn     | Plugin =:SLOT:= value is not in the registered slot set |
+| W013 | warn     | Plugin manifest missing required file-level keyword (=#+TITLE:= / =#+VERSION:= / =#+SLOT:=) |
+| W014 | warn     | Plugin manifest missing required =* About= top-level section |
+| E006 | error    | Plugin =:MANIFEST:= path does not resolve to a real file |
+| E001 | error    | Unparseable org syntax                                 |
+| E002 | error    | TODO keyword not in document's =#+TODO:= declaration   |
+| E003 | error    | =[[id:...]]= target does not exist                     |
+| E004 | error    | Source block in unsupported language with =:results=. Documentation src blocks (no =:results:=) pass silently. |
+| E005 | error    | =#+GLOSSARY:= merge conflict without override          |
+
+* Extension policy                                            :policy:
+  This file is small on purpose. Projects extending the vocabulary
+  should:
+
+  1. Add their additions to a local =./w.local.org= (or any name)
+     and reference it with =#+GLOSSARY: ./w.local.org= at the top of
+     files that need them.
+  2. Document the extensions in prose alongside each declaration —
+     the file is the documentation.
+  3. Propose upstream if the use case is general — open a bd issue.
+
+  We do not accept extensions that require parser changes. The
+  parser is canonical org-mode, full stop. Everything in this file
+  fills extension slots org already provides (property names, tag
+  names, dynamic block names, babel language names).

@@ -1,0 +1,14 @@
+#+TITLE: Parity Fixture — Tool Then Text
+
+* Tooled Agent                                                        :agent:
+  :PROPERTIES:
+  :ID:           tooled-agent
+  :TYPE:         ai
+  :MODEL:        test/stub-model
+  :CAPABILITIES: bash read write
+  :TOOLS:        bash read write
+  :END:
+
+** System prompt
+You are a deterministic test agent. When asked for the time you call
+the `bash` tool with `date -u`, then summarize the result.
